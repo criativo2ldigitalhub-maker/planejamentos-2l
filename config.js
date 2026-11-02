@@ -5,5 +5,5 @@ window.APP_CONFIG = {
   SUPABASE_URL: "https://qzfonkzhhbifbjcxrzdb.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable_VjzfC7pD5HSJd7eV4g6frg_IVoM7_Hr",
   // Google Cloud > APIs e serviços > Credenciais > ID do cliente OAuth (aplicativo da Web)
-  GOOGLE_CLIENT_ID: ""
+  GOOGLE_CLIENT_ID: "581140024453-mm0fgds5l6sk6cog1lpnkh8i6ji34l21.apps.googleusercontent.com"
 };
