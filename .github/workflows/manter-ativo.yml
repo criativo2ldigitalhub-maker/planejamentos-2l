@@ -1,0 +1,38 @@
+# Mantém o Supabase acordado mesmo com a plataforma parada por semanas.
+# Precisa de 2 segredos no GitHub: SUPABASE_URL e SUPABASE_ANON_KEY (veja o README).
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    - cron: "0 12 */3 * *"   # a cada 3 dias, 9h de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acessar o Supabase
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl -fsS "$URL/rest/v1/settings?select=id&limit=1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" > /dev/null
+          echo "Supabase acessado."
+
+      # O GitHub desliga tarefas agendadas de repositórios sem nenhuma alteração há 60 dias.
+      # Uma vez por mês registramos a data num arquivo para isso não acontecer.
+      - uses: actions/checkout@v4
+      - name: Registrar atividade do mês
+        run: |
+          MES=$(date +%Y-%m)
+          if [ "$(cat .ultimo-acesso 2>/dev/null)" != "$MES" ]; then
+            echo "$MES" > .ultimo-acesso
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add .ultimo-acesso
+            git commit -m "Registro mensal de atividade"
+            git push
+          fi
