@@ -473,7 +473,6 @@ function renderList(){
     ${store.demo?`<div class="banner">Modo demonstração: os dados ficam só neste navegador. Siga o README para ligar o Supabase e salvar de verdade.</div>`:""}
     <div class="listhead"><div class="grow"><h1>Planejamento de ${monthName(S.month)}</h1>
       <p class="sub">${counts.sent} de ${counts.all} clientes já receberam o planejamento deste mês.</p></div>
-      ${gEnabled()&&all.length?`<button class="btn ghost" id="pullAll">Puxar gravações da agenda</button>`:""}
       <button class="btn primary" id="newClient">Novo cliente</button></div>
     ${all.length?`<div class="tools"><input class="search" id="q" type="search" placeholder="Buscar cliente" value="${esc(S.q)}"><div class="seg">${seg}</div></div>`:""}
     <div class="clients">${
@@ -483,25 +482,9 @@ function renderList(){
         return `<button class="row" data-id="${c.id}"><div><div class="name">${esc(c.name)}</div><div class="pkg">${esc(pkgText(c))}${nr?`, ${nr} ${nr===1?"gravação":"gravações"}`:""}${ns?`<span class="warn">${ns} da agenda para conferir</span>`:""}</div></div><span class="pill ${s.k}">${s.t}</span></button>`}).join("")
     }</div>`;
   $("#newClient").onclick=()=>clientModal();
-  const pa=$("#pullAll");if(pa)pa.onclick=()=>pullAll(pa);
   const qi=$("#q");if(qi)qi.oninput=e=>{S.q=e.target.value;const pos=e.target.selectionStart;renderList();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)};
   m.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.filter=b.dataset.f;renderList()});
   m.querySelectorAll(".row").forEach(b=>b.onclick=()=>openClient(b.dataset.id));
-}
-async function pullAll(btn){
-  const month=S.month;btn.disabled=true;btn.textContent="Lendo a agenda…";
-  try{
-    const ev=matchEvents(await monthEvents(month,true));let hit=0,i=0;
-    for(const c of S.clients){
-      i++;btn.textContent=`Atualizando ${i} de ${S.clients.length}…`;
-      const cur=S.plans[c.id],p=cur?clone(cur):emptyPlan(c.id,month);
-      const before=JSON.stringify(p.recordings||[]);
-      if(applyEvents(c,p,ev[c.id]))hit++;
-      if(JSON.stringify(p.recordings)!==before){const sp=serializePlan({...p,arts:p.arts||[]});await store.savePlan(sp);if(month===S.month)S.plans[c.id]=sp}
-    }
-    toast(hit?`Novas gravações para conferir em ${hit} ${hit===1?"cliente":"clientes"}.`:"Nenhuma gravação nova na agenda.",4500);
-  }catch(e){gError(e)}
-  if(S.view==="list")renderList();
 }
 
 /* =================== RENDER: EDITOR =================== */

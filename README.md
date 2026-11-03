@@ -86,7 +86,6 @@ Na primeira vez que clicar em **Puxar da Google Agenda**, o Google abre uma jane
 ## Rotina do mês
 
 1. Escolha o mês no topo.
-2. Clique em **Puxar gravações da agenda** (busca para todos os clientes de uma vez). Na lista aparece “X da agenda para conferir”.
-3. Abra cada cliente, confira as gravações sugeridas e arraste as artes **na ordem**. Elas são divididas sozinhas pelas semanas conforme o pacote (4 artes = uma por semana, 8 artes = duas por semana). Dá para trocar a semana de cada uma.
-4. **Visualizar** para conferir, **Baixar arquivo** ou **Compartilhar** (no celular abre direto o WhatsApp).
-5. Marque **Enviado ao cliente**. A lista mostra quem falta.
+2. Abra cada cliente e clique em **Puxar da Google Agenda**. Confira as gravações sugeridas e arraste as artes **na ordem**. Elas são divididas sozinhas pelas semanas conforme o pacote (4 artes = uma por semana, 8 artes = duas por semana). Dá para trocar a semana de cada uma.
+3. **Visualizar** para conferir, **Baixar arquivo** ou **Compartilhar** (no celular abre direto o WhatsApp).
+4. Marque **Enviado ao cliente**. A lista mostra quem falta.
