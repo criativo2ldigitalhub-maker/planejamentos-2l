@@ -574,7 +574,7 @@ function renderEditor(){
     <button class="back" id="back">‹ Todos os clientes</button>
     <div class="ehead"><div class="grow"><h1>${esc(c.name)}</h1>
       <p class="sub">Planejamento de ${monthName(d.month)} de ${d.month.split("-")[0]}</p>
-      <div class="pkgline">${pkgChips(c)}</div></div>
+      <div class="pkgline">${pkgChips(c)}</div>${c.pkg_notes?`<p class="hint" style="margin-top:8px">${esc(c.pkg_notes)}</p>`:""}</div>
       <button class="btn ghost" id="editClient">Editar pacote</button></div>
 
     <section class="sec">
@@ -944,6 +944,7 @@ function renderFicha(){
         <label class="toggle"><span>Social media</span><input type="checkbox" id="kSoc" ${c.social?"checked":""}></label>
         <label class="field"><span>Início do contrato</span><input class="in" id="kStart" type="date" value="${esc(c.start_date||"")}"></label>
         ${gEnabled()?`<label class="field"><span>Outros nomes na agenda (opcional)</span><input class="in" id="kCal" value="${esc(c.calendar_name||"")}" placeholder="Ex.: BCar, Black"></label>`:""}
+        <label class="field wide"><span>Observações do pacote</span><textarea class="in" id="kNotes" rows="2" placeholder="Ex.: artes só de datas comemorativas, vídeos só edição…">${esc(c.pkg_notes||"")}</textarea></label>
       </div>
       <p class="hint" style="margin-top:12px">O planejamento do mês usa esse pacote. O dia de vencimento é o dia de mandar o planejamento ou o relatório.</p>
     </section>
@@ -1008,6 +1009,7 @@ function bindFicha(c){
   $("#kSoc").onchange=chg(()=>{c.social=$("#kSoc").checked},true);
   $("#kStart").onchange=chg(()=>{c.start_date=$("#kStart").value||null},true);
   const kc=$("#kCal");if(kc)kc.oninput=()=>{c.calendar_name=kc.value.trim();saveClientSoon(c)};
+  $("#kNotes").oninput=e=>{c.pkg_notes=e.target.value;saveClientSoon(c)};
   if(!S.admin)return;
 
   const priv=$("#privSec");

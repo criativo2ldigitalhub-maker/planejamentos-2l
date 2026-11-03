@@ -16,6 +16,7 @@ create table if not exists clients (
 alter table clients add column if not exists status text default 'ativo';  -- onboarding, ativo, pausado, encerrado
 alter table clients add column if not exists due_day int;                  -- dia do vencimento (10, 20, 30…)
 alter table clients add column if not exists start_date date;
+alter table clients add column if not exists pkg_notes text default '';
 
 create table if not exists plans (
   client_id uuid not null references clients(id) on delete cascade,
