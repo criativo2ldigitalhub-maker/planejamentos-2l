@@ -121,6 +121,24 @@ textarea.in{resize:vertical;min-height:70px;line-height:1.45}
 .artctl button{flex:1;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13px;color:var(--muted)}
 .artctl button:hover{color:var(--text)}
 .artctl button.rm:hover{color:#d4442a;border-color:#d4442a}
+.art .badge{position:absolute;top:8px;right:8px;background:var(--accent);color:var(--accent-ink);font-size:11.5px;font-weight:600;border-radius:999px;padding:3px 9px}
+.art.over{outline:2px dashed var(--accent);outline-offset:-2px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:6px}
+.card{display:grid;gap:4px;align-content:start}
+.card .th{position:relative;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:var(--bg)}
+.card .th img{width:100%;height:100%;object-fit:cover;display:block}
+.card .th span{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:10.5px;font-weight:600;border-radius:999px;padding:0 6px}
+.card.uploading .th img{opacity:.4}
+.card .cb{display:flex;gap:3px}
+.card .cb button{flex:1;height:22px;padding:0;border-radius:5px;border:1px solid var(--line);background:var(--surface);font-size:11px;color:var(--muted)}
+.card .cb button:hover{color:var(--text)}
+.card .cb button.rm:hover{color:#d4442a;border-color:#d4442a}
+.addcard{aspect-ratio:4/5;border:1.5px dashed var(--line);border-radius:6px;display:grid;place-content:center;text-align:center;font-size:11px;line-height:1.2;color:var(--muted);cursor:pointer}
+.addcard:hover{border-color:var(--accent);color:var(--text)}
+.addcard b{font-size:18px;font-weight:500}
+.addcard input,.addcards input{display:none}
+.addcards{display:block;height:34px;line-height:32px;border-radius:8px;border:1px dashed var(--line);text-align:center;font-size:13px;color:var(--muted);cursor:pointer}
+.addcards:hover{border-color:var(--accent);color:var(--text)}
 
 .recs{display:grid;gap:10px}
 .rec{display:grid;grid-template-columns:150px 110px 1fr 40px;gap:8px;align-items:center}
@@ -303,7 +321,8 @@ const client=()=>S.clients.find(c=>c.id===S.clientId);
 const settings=()=>({...DEFAULT_SETTINGS,...S.settings});
 const emptyPlan=(cid,m=S.month)=>({client_id:cid,month:m,arts:[],recordings:[],notes:"",sent:false});
 function serializePlan(d){return{client_id:d.client_id,month:d.month,notes:d.notes||"",sent:!!d.sent,
-  arts:d.arts.filter(a=>!a.uploading).map(a=>({id:a.id,url:a.url||"",path:a.path||"",week:+a.week||0,caption:a.caption||"",w:a.w||0,h:a.h||0,gone:!!a.gone})),
+  arts:d.arts.filter(a=>!a.uploading).map(a=>({id:a.id,url:a.url||"",path:a.path||"",week:+a.week||0,caption:a.caption||"",w:a.w||0,h:a.h||0,gone:!!a.gone,
+    cards:(a.cards||[]).filter(k=>!k.uploading).map(k=>({id:k.id,url:k.url||"",path:k.path||"",w:k.w||0,h:k.h||0}))})),
   recordings:d.recordings.map(r=>({id:r.id,date:r.date||"",time:r.time||"",note:r.note||"",status:r.status||"confirmada",gcal:!!r.gcal,gkey:r.gkey||"",title:r.title||"",match:r.match||"",calDate:r.calDate||"",calTime:r.calTime||""})),
   dismissed:(d.dismissed||[]).slice(-200)}}
 function savePlanDraft(d,delay){
@@ -539,9 +558,16 @@ function renderEditor(){
 }
 function artCard(a,i,nw){
   const opts=`<option value="0">Sem semana</option>`+Array.from({length:nw},(_,k)=>`<option value="${k+1}" ${+a.week===k+1?"selected":""}>Semana ${k+1}</option>`).join("");
+  const cs=a.cards||[],nc=cs.length+1,pick=`<input type="file" accept="image/*" multiple data-cards="1">`;
+  const cardsUI=a.gone||a.uploading?"":cs.length
+    ?`<div class="field"><span>Cards do carrossel</span><div class="cards">${cs.map((k,j)=>`<div class="card ${k.uploading?"uploading":""}" data-id="${k.id}"><div class="th"><img src="${esc(k.url||k.preview||"")}" alt="Card ${j+2}" loading="lazy"><span>${j+2}</span></div>
+        <div class="cb"><button data-a="cleft" aria-label="Mover card para antes">←</button><button class="rm" data-a="crm" aria-label="Remover card">✕</button></div></div>`).join("")}
+        <label class="addcard" title="Adicionar cards">${pick}<b>+</b>card</label></div></div>`
+    :`<label class="addcards">${pick}+ Adicionar cards (carrossel)</label>`;
   return `<div class="art ${a.uploading?"uploading":""} ${a.gone?"gone":""}" data-id="${a.id}">
-    <div class="imgw">${a.gone?"":`<img src="${esc(a.url||a.preview||"")}" alt="Arte ${i+1}" loading="lazy">`}<span class="num">${i+1}</span><div class="up">${a.gone?"Imagem apagada para liberar espaço":"Enviando…"}</div></div>
+    <div class="imgw">${a.gone?"":`<img src="${esc(a.url||a.preview||"")}" alt="Arte ${i+1}" loading="lazy">`}<span class="num">${i+1}</span>${cs.length&&!a.gone?`<span class="badge">Carrossel · ${nc}</span>`:""}<div class="up">${a.gone?"Imagem apagada para liberar espaço":"Enviando…"}</div></div>
     <div class="body">
+      ${cardsUI}
       <label class="field"><span>Semana</span><select class="in" data-k="week">${opts}</select></label>
       <label class="field"><span>Legenda (opcional)</span><textarea class="in" data-k="caption" rows="3">${esc(a.caption||"")}</textarea></label>
       <div class="artctl"><button data-a="left" aria-label="Mover para antes">←</button><button data-a="right" aria-label="Mover para depois">→</button><button class="rm" data-a="rm">Remover</button></div>
@@ -583,13 +609,24 @@ function bindEditor(){
   drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");addFiles([...e.dataTransfer.files].filter(f=>f.type.startsWith("image/")))};
   const arts=$("#arts");
   arts.oninput=e=>{const card=e.target.closest(".art"),k=e.target.dataset.k;if(!card||k!=="caption")return;const a=d.arts.find(x=>x.id===card.dataset.id);if(a){a.caption=e.target.value;save()}};
-  arts.onchange=e=>{const card=e.target.closest(".art");if(!card||e.target.dataset.k!=="week")return;const a=d.arts.find(x=>x.id===card.dataset.id);if(a){a.week=+e.target.value;save(0);renderEditor()}};
+  const artOf=el=>{const c=el.closest(".art");return c&&d.arts.find(x=>x.id===c.dataset.id)};
+  arts.onchange=e=>{
+    if(e.target.dataset.cards){const a=artOf(e.target);if(a)addCards(a,[...e.target.files]);e.target.value="";return}
+    const card=e.target.closest(".art");if(!card||e.target.dataset.k!=="week")return;const a=d.arts.find(x=>x.id===card.dataset.id);if(a){a.week=+e.target.value;save(0);renderEditor()}};
   arts.onclick=e=>{
     const b=e.target.closest("[data-a]");if(!b)return;
     const id=b.closest(".art").dataset.id,i=d.arts.findIndex(x=>x.id===id);if(i<0)return;
-    if(b.dataset.a==="rm"){
-      if(!confirm("Remover esta arte do planejamento?"))return;
-      const[a]=d.arts.splice(i,1);if(a.path)store.removeImages([a.path]).catch(()=>{});
+    const a=d.arts[i],cs=a.cards||[],j=cs.findIndex(k=>k.id===b.closest(".card")?.dataset.id);
+    if(b.dataset.a==="crm"){
+      if(j<0||!confirm("Remover este card do carrossel?"))return;
+      const[k]=cs.splice(j,1);if(k.path)store.removeImages([k.path]).catch(()=>{});
+    }else if(b.dataset.a==="cleft"){
+      if(j<0||cs[j].uploading)return;
+      if(j>0)[cs[j-1],cs[j]]=[cs[j],cs[j-1]];
+      else{const k=cs[0];for(const f of["url","path","w","h"])[a[f],k[f]]=[k[f],a[f]]} // o 1º card vira a capa
+    }else if(b.dataset.a==="rm"){
+      if(!confirm(cs.length?"Remover este carrossel inteiro do planejamento?":"Remover esta arte do planejamento?"))return;
+      d.arts.splice(i,1);store.removeImages([a.path,...cs.map(k=>k.path)]).catch(()=>{});
     }else{
       const j=b.dataset.a==="left"?i-1:i+1;if(j<0||j>=d.arts.length)return;
       [d.arts[i],d.arts[j]]=[d.arts[j],d.arts[i]];
@@ -597,6 +634,11 @@ function bindEditor(){
     }
     save(0);renderEditor();
   };
+  // soltar imagens em cima de uma arte vira cards do carrossel dela
+  const artDrop=e=>{const c=e.target.closest(".art");return c&&!c.matches(".uploading,.gone")&&[...e.dataTransfer.types].includes("Files")?c:null};
+  arts.ondragover=e=>{const c=artDrop(e);if(!c)return;e.preventDefault();c.classList.add("over")};
+  arts.ondragleave=e=>{const c=e.target.closest(".art");if(c&&!c.contains(e.relatedTarget))c.classList.remove("over")};
+  arts.ondrop=e=>{const c=artDrop(e);if(!c)return;e.preventDefault();c.classList.remove("over");const a=artOf(c);if(a)addCards(a,[...e.dataTransfer.files].filter(f=>f.type.startsWith("image/")))};
   const sp=$("#spread");if(sp)sp.onclick=()=>{spreadWeeks(d,client(),0);save(0);renderEditor();toast("Artes distribuídas pelas semanas, na ordem.")};
   const recs=$("#recs");
   const recOf=el=>{const w=el.closest("[data-id]");return w&&d.recordings.find(x=>x.id===w.dataset.id)};
@@ -645,16 +687,26 @@ async function addFiles(files){
   items.forEach(a=>d.arts.push(a));
   const nw=weeks(d.month).length,total=Math.max(+c.arts||0,d.arts.length),per=Math.max(1,Math.ceil(total/4));
   items.forEach((a,k)=>a.week=Math.min(nw,Math.floor((start+k)/per)+1));
+  await sendImages(d,d.arts,items);
+}
+async function addCards(art,files){
+  if(!files.length)return;
+  const d=S.draft,items=files.map(f=>({id:rid("k"),uploading:true,preview:URL.createObjectURL(f),_f:f}));
+  art.cards=art.cards||[];art.cards.push(...items);
+  await sendImages(d,art.cards,items);
+}
+// comprime e envia cada imagem; a que falhar sai da lista
+async function sendImages(d,list,items){
   S.uploads+=items.length;renderEditor();
   for(const a of items){
     try{
       const{blob,w,h}=await compress(a._f);a.w=w;a.h=h;
       const r=await store.uploadImage(blob,d.month);a.url=r.url;a.path=r.path;
       delete a.uploading;
-      const card=document.querySelector(`.art[data-id="${a.id}"]`);if(card)card.classList.remove("uploading");
+      const el=document.querySelector(`[data-id="${a.id}"]`);if(el)el.classList.remove("uploading");
     }catch(e){
-      console.error(e);const i=d.arts.indexOf(a);if(i>=0)d.arts.splice(i,1);
-      toast("Uma arte não pôde ser enviada. Tente de novo.");if(S.draft===d)renderEditor();
+      console.error(e);const i=list.indexOf(a);if(i>=0)list.splice(i,1);
+      toast("Uma imagem não pôde ser enviada. Tente de novo.");if(S.draft===d)renderEditor();
     }finally{delete a._f;S.uploads--;savePlanDraft(d,0)}
   }
   if(S.draft===d)renderEditor();
@@ -742,9 +794,9 @@ function settingsModal(){
     try{
       const plans=await store.oldPlans(cut);let n=0;
       for(const p of plans){
-        const paths=(p.arts||[]).filter(a=>a.path&&!a.gone).map(a=>a.path);if(!paths.length)continue;
+        const paths=(p.arts||[]).flatMap(a=>[a.path,...(a.cards||[]).map(k=>k.path)]).filter(Boolean);if(!paths.length)continue;
         await store.removeImages(paths);n+=paths.length;
-        await store.savePlan({...p,arts:(p.arts||[]).map(a=>a.path?{...a,url:"",path:"",gone:true}:a)});
+        await store.savePlan({...p,arts:(p.arts||[]).map(a=>a.path||(a.cards||[]).some(k=>k.path)?{...a,url:"",path:"",gone:true,cards:(a.cards||[]).map(k=>({...k,url:"",path:""}))}:a)});
       }
       toast(n?`${n} imagens apagadas.`:"Nenhuma imagem antiga para apagar.");
     }catch(e){console.error(e);toast("Não foi possível apagar as imagens.")}
@@ -764,7 +816,11 @@ function docHTML(c,p,s,img){
   const recs=(p.recordings||[]).filter(r=>r.date&&r.status!=="sugerida").sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   const arts=(p.arts||[]).filter(a=>!a.gone);
   const tile=(big,label,on)=>`<div class="tile ${on?"":"off"}"><div class="big">${big}</div><div class="lbl">${label}</div></div>`;
-  const fig=a=>`<figure><img src="${img(a)}" alt="Arte"${a.w?` width="${a.w}" height="${a.h}"`:""}>${a.caption?`<figcaption>${esc(a.caption)}</figcaption>`:""}</figure>`;
+  const pic=(a,alt)=>`<img src="${img(a)}" alt="${alt}"${a.w?` width="${a.w}" height="${a.h}"`:""}>`;
+  const fig=a=>{const cs=(a.cards||[]).filter(k=>k.url),fc=a.caption?`<figcaption>${esc(a.caption)}</figcaption>`:"";
+    if(!cs.length)return `<figure>${pic(a,"Arte")}${fc}</figure>`;
+    const all=[a,...cs];
+    return `<figure class="car"><div class="slides">${all.map((k,i)=>pic(k,`Card ${i+1} de ${all.length}`)).join("")}</div><div class="cartag"><b>Carrossel · ${all.length} cards</b><span>deslize para o lado</span></div>${fc}</figure>`};
   let artBlocks="";
   wk.forEach((r,i)=>{const items=arts.filter(a=>+a.week===i+1);if(items.length)artBlocks+=`<div class="wk"><div class="wkh"><b>Semana ${i+1}</b><span>${weekRange(p.month,i+1)}</span></div><div class="arts">${items.map(fig).join("")}</div></div>`});
   const loose=arts.filter(a=>!(+a.week>=1&&+a.week<=wk.length));
@@ -815,6 +871,12 @@ h2{font-size:clamp(26px,4.5vw,40px);font-weight:700;letter-spacing:-.025em;line-
 figure{margin:0;break-inside:avoid}
 figure img{width:100%;height:auto;display:block;border-radius:12px;background:#151515}
 figcaption{white-space:pre-wrap;font-size:14px;color:#c9c9c4;margin-top:10px;line-height:1.55}
+.slides{display:flex;align-items:flex-start;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;border-radius:12px}
+.slides::-webkit-scrollbar{display:none}
+.slides img{flex:0 0 100%;min-width:0;scroll-snap-align:start}
+.cartag{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13px}
+.cartag b{color:var(--o);font-weight:600}
+.cartag span{color:#8f8f89}
 .note{background:#1a0f08;border-left:3px solid var(--o);border-radius:0 12px 12px 0;padding:18px 20px;white-space:pre-wrap;max-width:70ch}
 .end{text-align:center;border:0;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 .end .logo{margin:0 auto 36px;align-self:auto}
@@ -831,6 +893,10 @@ figcaption{white-space:pre-wrap;font-size:14px;color:#c9c9c4;margin-top:10px;lin
   .cover{min-height:auto;height:297mm;padding:18mm 16mm}
   .tiles{grid-template-columns:repeat(4,1fr)}
   .arts{grid-template-columns:repeat(3,1fr)}
+  figure.car{grid-column:1/-1}
+  .slides{display:grid;grid-template-columns:repeat(5,1fr);overflow:visible;border-radius:0}
+  .slides img{border-radius:8px}
+  .cartag span{display:none}
   .wk{break-inside:avoid}
   .end{break-after:auto}
 }
@@ -872,7 +938,7 @@ async function deliver(mode){
   const btn=mode==="share"?$("#share"):$("#download"),label=btn.textContent;btn.disabled=true;btn.textContent="Preparando…";
   try{
     const p=serializePlan(S.draft),imgs={};
-    for(const a of p.arts){if(a.gone||!a.url)continue;
+    for(const a of p.arts.flatMap(a=>a.gone?[]:[a,...a.cards])){if(!a.url)continue;
       if(a.url.startsWith("data:")){imgs[a.id]=a.url;continue}
       try{imgs[a.id]=await fetch(a.url).then(r=>{if(!r.ok)throw 0;return r.blob()}).then(blobToDataURL)}catch(e){imgs[a.id]=a.url}}
     const html=docHTML(c,p,settings(),a=>imgs[a.id]||a.url);
