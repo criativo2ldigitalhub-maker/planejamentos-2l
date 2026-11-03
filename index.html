@@ -193,13 +193,40 @@ textarea.in{resize:vertical;min-height:70px;line-height:1.45}
 
 .toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:10px;font-size:14px;z-index:40;max-width:90vw;box-shadow:var(--shadow)}
 .loading{color:var(--muted);padding:40px 0;text-align:center}
-@media (max-width:560px){.brand span{display:none}.month{order:3;width:100%;justify-content:space-between;margin-left:0}.month strong{flex:1}.top-in{gap:8px;padding:12px 14px}.brand img{height:18px}.savestate{margin-left:auto;min-width:0}}
+.month.hidden+.savestate{margin-left:auto}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:none;border-radius:999px;height:32px;padding:0 14px;font-size:13px;color:var(--muted);white-space:nowrap}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.pill.onboarding{border-color:var(--accent);color:var(--accent)}
+.pill.ativo{background:var(--surface2);color:var(--text)}
+.pill.pausado,.pill.encerrado{border-style:dashed}
+.rowr{display:flex;gap:10px;align-items:center}
+.rowr .val{font-size:13px;font-weight:600;white-space:nowrap}
+.lock{font-size:12px;font-weight:500;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.grid2 .wide{grid-column:1/-1}
+.in.bad{border-color:#d4442a}
+.d4{display:grid;gap:6px}
+.d4row{display:grid;grid-template-columns:minmax(150px,230px) 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--surface2)}
+.d4row code{font:12px/1.3 ui-monospace,Consolas,monospace;color:var(--muted);word-break:break-word}
+.d4row .v{font-size:13.5px;word-break:break-word}
+.d4row .v.miss{color:#d4442a;font-weight:600}
+.d4row button{height:32px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;padding:0 12px;color:var(--muted)}
+.d4row button:hover{color:var(--accent);border-color:var(--accent)}
+.linkbox{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.linkbox .in{flex:1;min-width:200px}
+.pub{max-width:640px;margin:0 auto}
+.pub .sec h2{margin-bottom:12px}
+.req{color:var(--accent)}
+@media (max-width:640px){.d4row{grid-template-columns:1fr auto}.d4row code{grid-column:1/-1}}
+@media (max-width:560px){.brand span{display:none}.month{order:4;width:100%;justify-content:space-between;margin-left:0}.month strong{flex:1}.top-in{gap:8px;padding:12px 14px}.brand img{height:18px}.savestate{margin-left:auto;min-width:0}.tabs{order:3;width:100%}.tabs button{flex:1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <header class="top"><div class="top-in">
-  <div class="brand"><img id="logo" alt="2L Digital Hub"><span>Planejamentos</span></div>
+  <div class="brand"><img id="logo" alt="2L Digital Hub"><span id="brandSub">Planejamentos</span></div>
+  <nav class="tabs hidden" id="tabs" aria-label="Seções"><button data-tab="plan">Planejamentos</button><button data-tab="clients">Clientes</button></nav>
   <div class="month hidden" id="monthBox" aria-label="Mês do planejamento">
     <button id="mPrev" aria-label="Mês anterior">‹</button><strong id="mLabel"></strong><button id="mNext" aria-label="Próximo mês">›</button>
   </div>
@@ -248,13 +275,21 @@ function toast(msg,ms=3400){const t=document.createElement("div");t.className="t
 /* =================== STORES =================== */
 function makeDemoStore(){
   const KEY="planejamentos-2l-demo";
-  const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))||{clients:{},plans:{},settings:{}}}catch(e){return{clients:{},plans:{},settings:{}}}};
+  const load=()=>{let db;try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}db=db||{};for(const k of["clients","plans","settings","priv","forms"])db[k]=db[k]||{};return db};
   const save=db=>{localStorage.setItem(KEY,JSON.stringify(db))};
   return{
     demo:true,
     async session(){return true},
+    async isAdmin(){return true},
+    async listPrivate(){return load().priv},
+    async mergePrivate(cid,patch){const db=load();db.priv[cid]={...db.priv[cid],...patch};save(db);return db.priv[cid]},
+    async listForms(){return Object.values(load().forms)},
+    async createForm(cid){const db=load(),f={token:rid("t"),client_id:cid,created_at:new Date().toISOString(),submitted_at:null};db.forms[f.token]=f;save(db);return f},
+    async formInfo(t){const db=load(),f=db.forms[t];return f?{name:db.clients[f.client_id]?.name||"",submitted:!!f.submitted_at}:null},
+    async submitForm(t,payload){const db=load(),f=db.forms[t];if(!f||f.submitted_at)return false;f.submitted_at=new Date().toISOString();db.priv[f.client_id]={...db.priv[f.client_id],...payload};save(db);return true},
+    async listTeam(){return[]},async saveTeam(){},async deleteTeam(){},
     async listClients(){return Object.values(load().clients)},
-    async saveClient(c){const db=load();if(!c.id)c.id=rid("c");db.clients[c.id]=c;save(db);return c},
+    async saveClient(c){const db=load();if(!c.id)c.id=rid("c");db.clients[c.id]={...db.clients[c.id],...c};save(db);return db.clients[c.id]},
     async deleteClient(id){const db=load();delete db.clients[id];for(const k in db.plans)if(db.plans[k].client_id===id)delete db.plans[k];save(db)},
     async listPlans(month){const out={};for(const p of Object.values(load().plans))if(p.month===month)out[p.client_id]=p;return out},
     async savePlan(p){const db=load();db.plans[p.client_id+"_"+p.month]=p;save(db)},
@@ -275,6 +310,16 @@ function makeSupaStore(){
     async session(){const{data}=await sb.auth.getSession();return !!data.session},
     async signIn(email,password){const{error}=await sb.auth.signInWithPassword({email,password});if(error)throw error},
     async signOut(){await sb.auth.signOut()},
+    async isAdmin(){return ok(await sb.rpc("is_admin"))===true},
+    async listPrivate(){const out={};for(const r of ok(await sb.from("client_private").select("client_id,data")))out[r.client_id]=r.data||{};return out},
+    async mergePrivate(cid,patch){return ok(await sb.rpc("merge_private",{cid,patch}))||{}},
+    async listForms(){return ok(await sb.from("client_forms").select("*").order("created_at"))},
+    async createForm(cid){return ok(await sb.from("client_forms").insert({client_id:cid}).select().single())},
+    async formInfo(t){const{data,error}=await sb.rpc("onboarding_info",{t});if(error)return null;return data},
+    async submitForm(t,payload){return ok(await sb.rpc("submit_onboarding",{t,payload}))===true},
+    async listTeam(){return ok(await sb.from("team").select("*").order("email"))},
+    async saveTeam(email,role){ok(await sb.from("team").upsert({email,role}))},
+    async deleteTeam(email){ok(await sb.from("team").delete().eq("email",email))},
     async listClients(){return ok(await sb.from("clients").select("*"))},
     async saveClient(c){const row={...c};if(!row.id)delete row.id;return ok(await sb.from("clients").upsert(row).select().single())},
     async deleteClient(id){ok(await sb.from("clients").delete().eq("id",id))},
@@ -289,14 +334,15 @@ function makeSupaStore(){
     },
     async removeImages(paths){paths=paths.filter(Boolean);for(let i=0;i<paths.length;i+=100)ok(await sb.storage.from("artes").remove(paths.slice(i,i+100)))},
     async oldPlans(cut){return ok(await sb.from("plans").select("*").lt("month",cut))},
-    async dumpAll(){return{clients:await all("clients"),plans:await all("plans"),settings:await this.getSettings(),exportedAt:new Date().toISOString()}}
+    async dumpAll(){return{clients:await all("clients"),plans:await all("plans"),settings:await this.getSettings(),private:S.admin?await all("client_private"):undefined,exportedAt:new Date().toISOString()}}
   };
 }
 const hasSupa=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_ANON_KEY&&window.supabase);
 const store=hasSupa?makeSupaStore():makeDemoStore();
 
 /* =================== STATE / WRITES =================== */
-const S={clients:[],plans:{},settings:{},month:nextMonthKey(),view:"list",clientId:null,draft:null,filter:"all",q:"",uploads:0,loaded:false};
+const S={clients:[],plans:{},settings:{},month:nextMonthKey(),view:"list",clientId:null,draft:null,filter:"all",q:"",uploads:0,loaded:false,
+  admin:false,adminErr:false,priv:{},privPend:{},forms:{},fichaId:null,cfilter:"live",cq:""};
 const writers={},timers={};
 function updateSaveState(){const busy=Object.values(writers).some(w=>w.busy||w.dirty)||Object.keys(timers).length||S.uploads;$("#saveState").textContent=S.loaded?(busy?"Salvando…":"Salvo"):""}
 function queueWrite(key,task){
@@ -464,8 +510,12 @@ function gError(e){
 
 /* =================== RENDER: TOP / LOGIN =================== */
 function renderTop(){
+  const plan=S.view==="list"||S.view==="client";
   $("#mLabel").textContent=monthLabel(S.month);$("#logo").src=LOGO;
-  $("#monthBox").classList.toggle("hidden",!S.loaded);$("#openSettings").classList.toggle("hidden",!S.loaded);updateSaveState();
+  $("#monthBox").classList.toggle("hidden",!S.loaded||!plan);$("#openSettings").classList.toggle("hidden",!S.loaded);
+  $("#tabs").classList.toggle("hidden",!S.loaded);$("#brandSub").classList.toggle("hidden",S.loaded);
+  $("#tabs").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab==="plan"?plan:!plan)));
+  updateSaveState();
 }
 function renderLogin(){
   renderTop();$("#layer").innerHTML="";
@@ -484,7 +534,7 @@ function renderLogin(){
 function renderList(){
   renderTop();
   const m=$("#main");$("#layer").innerHTML="";
-  const all=[...S.clients].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+  const all=S.clients.filter(live).sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
   const counts={all:all.length,none:0,prog:0,sent:0};all.forEach(c=>counts[status(c).k]++);
   const q=norm(S.q);
   const list=all.filter(c=>(S.filter==="all"||status(c).k===S.filter)&&(!q||norm(c.name).includes(q)));
@@ -500,7 +550,7 @@ function renderList(){
       !all.length?`<div class="empty"><strong>Nenhum cliente cadastrado</strong>Cadastre cada cliente uma vez, com o pacote dele. Depois, todo mês, é só abrir e subir as artes.</div>`
       :!list.length?`<div class="empty">Nenhum cliente nesse filtro.</div>`
       :list.map(c=>{const s=status(c),p=S.plans[c.id],rs=p?(p.recordings||[]):[],nr=rs.filter(r=>r.date&&r.status!=="sugerida").length,ns=rs.filter(r=>r.status==="sugerida").length;
-        return `<button class="row" data-id="${c.id}"><div><div class="name">${esc(c.name)}</div><div class="pkg">${esc(pkgText(c))}${nr?`, ${nr} ${nr===1?"gravação":"gravações"}`:""}${ns?`<span class="warn">${ns} da agenda para conferir</span>`:""}</div></div><span class="pill ${s.k}">${s.t}</span></button>`}).join("")
+        return `<button class="row" data-id="${c.id}"><div><div class="name">${esc(c.name)}</div><div class="pkg">${esc(pkgText(c))}${nr?`, ${nr} ${nr===1?"gravação":"gravações"}`:""}${c.due_day?` · vence dia ${+c.due_day}`:""}${ns?`<span class="warn">${ns} da agenda para conferir</span>`:""}</div></div><span class="pill ${s.k}">${s.t}</span></button>`}).join("")
     }</div>`;
   $("#newClient").onclick=()=>clientModal();
   const qi=$("#q");if(qi)qi.oninput=e=>{S.q=e.target.value;const pos=e.target.selectionStart;renderList();const n=$("#q");n.focus();n.setSelectionRange(pos,pos)};
@@ -715,6 +765,306 @@ async function sendImages(d,list,items){
   if(S.draft===d)renderEditor();
 }
 
+/* =================== CADASTRO DOS CLIENTES =================== */
+const STATUS={onboarding:"Em onboarding",ativo:"Ativo",pausado:"Pausado",encerrado:"Encerrado"};
+const stOf=c=>STATUS[c.status]?c.status:"ativo";
+const live=c=>stOf(c)==="ativo"||stOf(c)==="onboarding";
+// opções iguais às listas suspensas do modelo no D4Sign
+const D4={
+  pagamento:["BOLETO OU PIX MENSAL","PAGAMENTO INTEGRAL E ANTECIPADO DO PERÍODO DE FIDELIDADE PARCELADO EM CARTÃO DE CRÉDITO","PAGAMENTO INTEGRAL E ANTECIPADO DO PERÍODO DE FIDELIDADE VIA PIX"],
+  dias:[5,10,15,20,25,30],
+  condicao:["PAGA NO ATO DA ASSINATURA","DISPENSADA EM RAZÃO DO PAGAMENTO INTEGRAL E ANTECIPADO DA FIDELIDADE CONTRATUAL","DISPENSADA EM RAZÃO DE CONDIÇÃO COMERCIAL ESPECÍFICA ACORDADA ENTRE AS PARTES"],
+  fidelidade:["1 (um) mês","2 (dois) meses","3 (três) meses","4 (quatro) meses","5 (cinco) meses","6 (seis) meses","9 (nove) meses","12 (doze) meses"]
+};
+const EDIT_ONLY=new Set(["Media","Master"]);   // só editam vídeos captados pelo cliente
+const PDEF={"valor da taxa de implementação":"750,00","condição da taxa de implementação":"PAGA NO ATO DA ASSINATURA"};
+const pv=(p,k)=>p[k]??PDEF[k]??"";
+// mesmas perguntas do formulário de onboarding
+const F_EMPRESA=[
+  ["razão social","Razão social",{req:1,wide:1}],
+  ["CNPJ contratante","CNPJ",{req:1,mask:"cnpj"}],
+  ["nome fantasia","Nome fantasia",{}],
+  ["endereço","Endereço (rua, número e bairro)",{req:1,wide:1}],
+  ["cidade","Cidade",{req:1}],
+  ["estado","Estado (UF)",{req:1,mask:"uf"}],
+  ["CEP","CEP",{req:1,mask:"cep"}]];
+const F_REPR=[
+  ["nome do representante legal","Nome completo do representante legal",{req:1,wide:1}],
+  ["CPF do representante legal","CPF do representante legal",{req:1,mask:"cpf"}],
+  ["e-mail do representante","E-mail do representante legal",{req:1,type:"email"}],
+  ["data de nascimento","Data de nascimento",{type:"date"}]];
+const F_FIN=[
+  ["nome do financeiro","Nome do responsável pelo financeiro",{req:1}],
+  ["contato do financeiro","Telefone/WhatsApp do financeiro",{req:1,mask:"phone",type:"tel"}]];
+const F_CLIENT=[...F_EMPRESA,...F_REPR,...F_FIN];
+
+const digits=s=>String(s||"").replace(/\D/g,"");
+function mask(kind,v){
+  const d=digits(v);
+  if(kind==="cpf")return d.slice(0,11).replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2");
+  if(kind==="cnpj")return d.slice(0,14).replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2");
+  if(kind==="cep")return d.slice(0,8).replace(/(\d{5})(\d)/,"$1-$2");
+  if(kind==="phone"){const x=d.slice(0,11);return x.replace(/(\d{2})(\d)/,"($1) $2").replace(x.length>10?/(\d{5})(\d)/:/(\d{4})(\d)/,"$1-$2")}
+  if(kind==="uf")return String(v||"").replace(/[^a-z]/gi,"").slice(0,2).toUpperCase();
+  return v;
+}
+function cpfOk(v){const d=digits(v);if(d.length!==11||/^(\d)\1+$/.test(d))return false;
+  for(const n of[9,10]){let s=0;for(let i=0;i<n;i++)s+=+d[i]*(n+1-i);if(s*10%11%10!==+d[n])return false}return true}
+function cnpjOk(v){const d=digits(v);if(d.length!==14||/^(\d)\1+$/.test(d))return false;
+  for(const n of[12,13]){let s=0,w=n-7;for(let i=0;i<n;i++){s+=+d[i]*w--;if(w<2)w=9}if((s%11<2?0:11-s%11)!==+d[n])return false}return true}
+const fieldOk=(o,v)=>!v||(o.mask==="cpf"?cpfOk(v):o.mask==="cnpj"?cnpjOk(v):o.type==="email"?/^\S+@\S+\.\S+$/.test(v):true);
+// "1500", "1.500" ou "1500,5" viram "1.500,00" (o D4Sign já coloca o R$)
+const moneyNum=s=>{s=String(s||"").trim();if(!s)return NaN;return s.includes(",")?+s.replace(/[^\d,]/g,"").replace(",","."):+s.replace(/[^\d.]/g,"").replace(/\.(?=\d{3}(\D|$))/g,"")};
+const money=s=>{const n=moneyNum(s);return isFinite(n)?n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):String(s||"").trim()};
+const brDate=iso=>iso?iso.split("-").reverse().join("/"):"";
+// começou dia 3, vence dia 10: o primeiro dia 10, 20 ou 30 com pelo menos uma semana de folga
+function suggestDue(d=new Date()){const t=d.getDate()+7;return t<=10?10:t<=20?20:t<=30?30:10}
+
+function d4Fields(c,p){
+  const prod=(+c.videos||0)+(+c.arts||0)>0;
+  const qty=(n,edit)=>+n?`${+n}${edit?" (somente edição)":""}`:"não possui";
+  const addr=[p["endereço"],[p.cidade,p.estado].filter(Boolean).join("/"),p.CEP&&"CEP "+p.CEP].filter(Boolean).join(", ");
+  return[
+    ["razão social",p["razão social"]],
+    ["CNPJ contratante",p["CNPJ contratante"]],
+    ["nome fantasia",p["nome fantasia"],true],
+    ["endereço completo contratante",addr],
+    ["nome do representante legal",p["nome do representante legal"]],
+    ["CPF do representante legal",p["CPF do representante legal"]],
+    ["nome do plano",PLANS[c.plan]?"PLANO "+c.plan.toUpperCase():""],
+    ["serviços inclusos",[prod&&"PRODUÇÃO DE CONTEÚDO",c.social&&"SOCIAL MEDIA",c.traffic&&"TRÁFEGO PAGO"].filter(Boolean).join(" & ")],
+    ["quantidade de vídeos",qty(c.videos,EDIT_ONLY.has(c.plan))],
+    ["quantidade de artes",qty(c.arts)],
+    ["valor mensal do plano",p["valor mensal do plano"]],
+    ["forma de pagamento",p["forma de pagamento"]],
+    ["dia de vencimento",c.due_day?String(c.due_day):""],
+    ["valor da taxa de implementação",pv(p,"valor da taxa de implementação")],
+    ["condição da taxa de implementação",pv(p,"condição da taxa de implementação")],
+    ["prazo de fidelidade",p["prazo de fidelidade"]],
+    ["data da assinatura",brDate(p["data da assinatura"])]
+  ].map(([k,v,opt])=>({k,v:String(v||"").trim(),opt:!!opt}));
+}
+function d4HTML(c,p){
+  const f=d4Fields(c,p),miss=f.filter(x=>!x.v&&!x.opt).length;
+  return `<p class="hint" style="margin:-4px 0 12px">${miss?`Faltam ${miss} ${miss===1?"campo":"campos"} para o contrato.`:"Tudo preenchido."} Copie cada valor para o campo de mesmo nome no D4Sign.</p>
+    <div class="d4">${f.map((x,i)=>`<div class="d4row"><code>${esc(x.k)}</code><span class="v ${x.v||x.opt?"":"miss"}">${x.v?esc(x.v):x.opt?"(opcional, vazio)":"falta preencher"}</span>${x.v?`<button data-cp="${i}">Copiar</button>`:"<span></span>"}</div>`).join("")}</div>`;
+}
+
+function inputHTML(k,label,o,v){
+  const val=o.type==="date"?v||"":v||"";
+  return `<label class="field ${o.wide?"wide":""}"><span>${esc(label)}${o.req?` <b class="req">*</b>`:""}</span><input class="in ${fieldOk(o,v)?"":"bad"}" data-k="${esc(k)}" ${o.mask?`data-mask="${o.mask}" inputmode="${o.mask==="uf"?"text":"numeric"}"`:""} type="${o.type||"text"}" value="${esc(val)}" ${o.type==="email"?'autocomplete="email"':""}></label>`;
+}
+const optsHTML=(list,v,blank="Escolher…")=>`<option value="">${blank}</option>`+list.map(x=>`<option ${String(x)===String(v??"")?"selected":""}>${esc(x)}</option>`).join("");
+function bindMasks(root,fields,onVal){
+  root.querySelectorAll("input[data-k]").forEach(el=>{
+    const f=fields.find(x=>x[0]===el.dataset.k);if(!f)return;const o=f[2];
+    el.addEventListener("input",()=>{if(o.mask){const m=mask(o.mask,el.value);if(m!==el.value)el.value=m}el.classList.remove("bad");onVal&&onVal(f[0],el.value.trim())});
+    el.addEventListener("blur",()=>el.classList.toggle("bad",!fieldOk(o,el.value.trim())));
+  });
+}
+
+async function refreshPrivate(){
+  if(!S.admin)return;
+  const[priv,forms]=await Promise.all([store.listPrivate(),store.listForms()]);
+  S.priv=priv;S.forms={};for(const f of forms)S.forms[f.client_id]=f;   // fica o link mais recente
+}
+function savePriv(cid,k,v){
+  S.priv[cid]={...S.priv[cid],[k]:v};
+  (S.privPend[cid]||(S.privPend[cid]={}))[k]=v;
+  saveSoon("priv:"+cid,async()=>{
+    const patch=S.privPend[cid];S.privPend[cid]={};if(!Object.keys(patch).length)return;
+    try{const d=await store.mergePrivate(cid,patch);S.priv[cid]={...d,...S.privPend[cid]}}
+    catch(e){S.privPend[cid]={...patch,...S.privPend[cid]};throw e}
+  });
+}
+const saveClientSoon=c=>saveSoon("client:"+c.id,()=>store.saveClient({...c}));
+const formURL=t=>location.origin+location.pathname+"#cadastro="+t;
+
+function renderClients(){
+  flushTimers();S.view="clients";S.fichaId=null;renderTop();$("#layer").innerHTML="";
+  const all=[...S.clients].sort((a,b)=>(a.name||"").localeCompare(b.name||"","pt-BR"));
+  const counts={live:0,all:all.length,onboarding:0,ativo:0,pausado:0,encerrado:0};
+  all.forEach(c=>{counts[stOf(c)]++;if(live(c))counts.live++});
+  const q=norm(S.cq);
+  const list=all.filter(c=>(S.cfilter==="all"||(S.cfilter==="live"?live(c):stOf(c)===S.cfilter))&&(!q||norm(c.name).includes(q)||norm(S.priv[c.id]?.["razão social"]).includes(q)));
+  const seg=[["live","Ativos"],["onboarding","Onboarding"],["pausado","Pausados"],["encerrado","Encerrados"],["all","Todos"]]
+    .map(([k,t])=>`<button data-f="${k}" aria-pressed="${S.cfilter===k}">${t}<b>${counts[k]}</b></button>`).join("");
+  const mrr=S.admin?all.filter(c=>stOf(c)==="ativo").reduce((s,c)=>s+(moneyNum(S.priv[c.id]?.["valor mensal do plano"])||0),0):0;
+  const m=$("#main");
+  m.innerHTML=`
+    ${store.demo?`<div class="banner">Modo demonstração: os dados ficam só neste navegador.</div>`:""}
+    ${S.adminErr?`<div class="banner">Para liberar os dados de contrato, rode de novo o <b>supabase.sql</b> no Supabase (SQL Editor &gt; New query &gt; Run).</div>`:""}
+    <div class="listhead"><div class="grow"><h1>Clientes</h1>
+      <p class="sub">${counts.ativo} ${counts.ativo===1?"ativo":"ativos"}${counts.onboarding?`, ${counts.onboarding} em onboarding`:""}${S.admin&&mrr?` · R$ ${money(mrr)} por mês`:""}</p></div>
+      <button class="btn primary" id="newClient">Novo cliente</button></div>
+    ${all.length?`<div class="tools"><input class="search" id="cq" type="search" placeholder="Buscar cliente" value="${esc(S.cq)}"><div class="seg">${seg}</div></div>`:""}
+    <div class="clients">${
+      !all.length?`<div class="empty"><strong>Nenhum cliente cadastrado</strong>Clique em Novo cliente quando fechar um contrato.</div>`
+      :!list.length?`<div class="empty">Nenhum cliente nesse filtro.</div>`
+      :list.map(c=>{const st=stOf(c),val=S.admin?S.priv[c.id]?.["valor mensal do plano"]:"";
+        return `<button class="row" data-id="${c.id}"><div><div class="name">${esc(c.name)}</div><div class="pkg">${esc(pkgText(c))}${c.due_day?` · vence dia ${+c.due_day}`:""}</div></div>
+          <div class="rowr">${val?`<span class="val">R$ ${esc(money(val))}</span>`:""}<span class="pill ${st}">${STATUS[st]}</span></div></button>`}).join("")
+    }</div>`;
+  $("#newClient").onclick=()=>clientModal();
+  const qi=$("#cq");if(qi)qi.oninput=e=>{S.cq=e.target.value;const pos=e.target.selectionStart;renderClients();const n=$("#cq");n.focus();n.setSelectionRange(pos,pos)};
+  m.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{S.cfilter=b.dataset.f;renderClients()});
+  m.querySelectorAll(".row").forEach(b=>b.onclick=()=>openFicha(b.dataset.id));
+}
+
+async function openFicha(id){
+  flushTimers();S.view="ficha";S.fichaId=id;window.scrollTo(0,0);
+  if(S.admin){renderTop();$("#layer").innerHTML="";$("#main").innerHTML=`<div class="loading">Carregando…</div>`;try{await refreshPrivate()}catch(e){console.error(e)}}
+  if(S.view==="ficha"&&S.fichaId===id)renderFicha();
+}
+function renderFicha(){
+  renderTop();$("#layer").innerHTML="";
+  const c=S.clients.find(x=>x.id===S.fichaId);if(!c){renderClients();return}
+  const p=S.priv[c.id]||{},f=S.forms[c.id],st=stOf(c),admin=S.admin;
+  const opts=Object.keys(PLANS).map(x=>`<option ${c.plan===x?"selected":""}>${x}</option>`).join("");
+  const grid=(fields)=>`<div class="grid2">${fields.map(([k,l,o])=>inputHTML(k,l,o,p[k])).join("")}</div>`;
+  const m=$("#main");
+  m.innerHTML=`
+    ${store.demo?`<div class="banner">Modo demonstração: os dados ficam só neste navegador.</div>`:""}
+    <button class="back" id="back">‹ Todos os clientes</button>
+    <div class="ehead"><div class="grow"><h1>${esc(c.name)}</h1>
+      <p class="sub">${STATUS[st]}${c.due_day?` · vence todo dia ${+c.due_day}`:""}${c.start_date?` · cliente desde ${brDate(c.start_date)}`:""}</p>
+      <div class="pkgline">${pkgChips(c)}</div></div>
+      ${live(c)?`<button class="btn ghost" id="toPlan">Abrir planejamento</button>`:""}</div>
+
+    <section class="sec" id="pkgSec">
+      <div class="sechead"><h2>Pacote e entregáveis</h2><span class="count">Toda a equipe vê esta parte</span></div>
+      <div class="grid2">
+        <label class="field"><span>Nome do cliente</span><input class="in" id="kName" value="${esc(c.name)}"></label>
+        <label class="field"><span>Situação</span><select class="in" id="kStatus">${Object.entries(STATUS).map(([k,t])=>`<option value="${k}" ${st===k?"selected":""}>${t}</option>`).join("")}</select></label>
+        <label class="field"><span>Plano</span><select class="in" id="kPlan">${opts}</select></label>
+        <label class="field"><span>Dia de vencimento</span><select class="in" id="kDue">${optsHTML(D4.dias,c.due_day,"Sem dia definido")}</select></label>
+        <label class="field"><span>Vídeos por mês</span><input class="in" id="kVid" type="number" min="0" value="${+c.videos||0}"></label>
+        <label class="field"><span>Artes por mês</span><input class="in" id="kArt" type="number" min="0" value="${+c.arts||0}"></label>
+        <label class="toggle"><span>Tráfego pago</span><input type="checkbox" id="kTraf" ${c.traffic?"checked":""}></label>
+        <label class="toggle"><span>Social media</span><input type="checkbox" id="kSoc" ${c.social?"checked":""}></label>
+        <label class="field"><span>Início do contrato</span><input class="in" id="kStart" type="date" value="${esc(c.start_date||"")}"></label>
+        ${gEnabled()?`<label class="field"><span>Outros nomes na agenda (opcional)</span><input class="in" id="kCal" value="${esc(c.calendar_name||"")}" placeholder="Ex.: BCar, Black"></label>`:""}
+      </div>
+      <p class="hint" style="margin-top:12px">O planejamento do mês usa esse pacote. O dia de vencimento é o dia de mandar o planejamento ou o relatório.</p>
+    </section>
+
+    ${admin?`
+    <section class="sec">
+      <div class="sechead"><h2>Formulário do cliente</h2><span class="lock">Só administrador</span></div>
+      ${!f?`<p class="hint" style="margin:-4px 0 12px">Gere um link e mande para o cliente preencher os dados da empresa, do representante legal e do financeiro. As respostas aparecem aqui embaixo.</p>
+        <button class="btn primary small" id="newForm">Gerar link do formulário</button>`
+      :f.submitted_at?`<p class="hint" style="margin:-4px 0 12px">O cliente respondeu em ${new Date(f.submitted_at).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}. Os dados já estão nos campos abaixo.</p>
+        <button class="btn ghost small" id="newForm">Gerar link novo</button>`
+      :`<p class="hint" style="margin:-4px 0 12px">Aguardando o cliente responder. O link funciona uma vez só.</p>
+        <div class="linkbox"><input class="in" readonly value="${esc(formURL(f.token))}" id="formLink"><button class="btn primary small" id="copyForm">Copiar link</button></div>`}
+    </section>
+
+    <section class="sec" id="privSec">
+      <div class="sechead"><h2>Dados da empresa</h2><span class="lock">Só administrador</span></div>
+      ${grid(F_EMPRESA)}
+      <h3 style="margin:18px 0 10px;font-size:15px">Representante legal</h3>
+      ${grid(F_REPR)}
+      <h3 style="margin:18px 0 10px;font-size:15px">Financeiro</h3>
+      ${grid(F_FIN)}
+    </section>
+
+    <section class="sec" id="dealSec">
+      <div class="sechead"><h2>Contrato</h2><span class="lock">Só administrador</span><span class="count">O que foi alinhado com o comercial</span></div>
+      <div class="grid2">
+        <label class="field"><span>Valor mensal (R$)</span><input class="in" data-p="valor mensal do plano" data-money="1" inputmode="decimal" value="${esc(p["valor mensal do plano"]||"")}" placeholder="1.500,00"></label>
+        <label class="field"><span>Prazo de fidelidade</span><select class="in" data-p="prazo de fidelidade">${optsHTML(D4.fidelidade,p["prazo de fidelidade"])}</select></label>
+        <label class="field wide"><span>Forma de pagamento</span><select class="in" data-p="forma de pagamento">${optsHTML(D4.pagamento,p["forma de pagamento"])}</select></label>
+        <label class="field"><span>Taxa de implementação (R$)</span><input class="in" data-p="valor da taxa de implementação" data-money="1" inputmode="decimal" value="${esc(pv(p,"valor da taxa de implementação"))}"></label>
+        <label class="field"><span>Data da assinatura</span><input class="in" type="date" data-p="data da assinatura" value="${esc(p["data da assinatura"]||"")}"></label>
+        <label class="field wide"><span>Condição da taxa de implementação</span><select class="in" data-p="condição da taxa de implementação">${optsHTML(D4.condicao,pv(p,"condição da taxa de implementação"))}</select></label>
+        <label class="field wide"><span>Observações do comercial</span><textarea class="in" data-p="observações" rows="3" placeholder="Descontos, combinados, prazos especiais…">${esc(p["observações"]||"")}</textarea></label>
+      </div>
+      <p class="hint" style="margin-top:12px">Mantenha a taxa em 750,00 mesmo quando for dispensada: a dispensa vai na condição.</p>
+    </section>
+
+    <section class="sec">
+      <div class="sechead"><h2>Para o contrato no D4Sign</h2>
+        <div class="right"><button class="btn primary small" id="copyAll">Copiar tudo</button></div></div>
+      <div id="d4">${d4HTML(c,p)}</div>
+    </section>`:""}
+
+    <div class="foot" style="display:flex;gap:10px;flex-wrap:wrap">${admin?`<button class="btn danger small" id="delClient">Excluir cliente</button>`:""}</div>`;
+  bindFicha(c);
+}
+function bindFicha(c){
+  const m=$("#main"),cid=c.id;
+  const paintD4=()=>{const box=$("#d4");if(box)box.innerHTML=d4HTML(c,S.priv[cid]||{})};
+  const chg=(fn,re)=>()=>{fn();saveClientSoon(c);re?renderFicha():paintD4()};
+  $("#back").onclick=renderClients;
+  const tp=$("#toPlan");if(tp)tp.onclick=()=>{flushTimers();openClient(cid)};
+  $("#kName").oninput=e=>{const v=e.target.value.trim();if(!v)return;c.name=v;saveClientSoon(c);$("h1",m).textContent=v};
+  $("#kStatus").onchange=chg(()=>{c.status=$("#kStatus").value},true);
+  $("#kPlan").onchange=chg(()=>{c.plan=$("#kPlan").value;const p=PLANS[c.plan];if(p)Object.assign(c,p)},true);
+  $("#kDue").onchange=chg(()=>{c.due_day=+$("#kDue").value||null},true);
+  $("#kVid").oninput=chg(()=>{c.videos=Math.max(0,+$("#kVid").value||0)});
+  $("#kArt").oninput=chg(()=>{c.arts=Math.max(0,+$("#kArt").value||0)});
+  $("#kVid").onchange=$("#kArt").onchange=()=>renderFicha();
+  $("#kTraf").onchange=chg(()=>{c.traffic=$("#kTraf").checked},true);
+  $("#kSoc").onchange=chg(()=>{c.social=$("#kSoc").checked},true);
+  $("#kStart").onchange=chg(()=>{c.start_date=$("#kStart").value||null},true);
+  const kc=$("#kCal");if(kc)kc.oninput=()=>{c.calendar_name=kc.value.trim();saveClientSoon(c)};
+  if(!S.admin)return;
+
+  const priv=$("#privSec");
+  bindMasks(priv,F_CLIENT,(k,v)=>{savePriv(cid,k,v);paintD4()});
+  $("#dealSec").querySelectorAll("[data-p]").forEach(el=>{
+    const k=el.dataset.p,set=()=>{savePriv(cid,k,el.value.trim());paintD4()};
+    el.addEventListener(el.tagName==="SELECT"||el.type==="date"?"change":"input",set);
+    if(el.dataset.money)el.addEventListener("blur",()=>{const v=money(el.value);if(v!==el.value){el.value=v;set()}});
+  });
+  $("#d4").onclick=e=>{const b=e.target.closest("[data-cp]");if(!b)return;const x=d4Fields(c,S.priv[cid]||{})[+b.dataset.cp];
+    copyText(x.v).then(ok=>{if(ok){b.textContent="Copiado";setTimeout(()=>{b.textContent="Copiar"},1400)}else msgModal(x.v)})};
+  $("#copyAll").onclick=async()=>{const t=d4Fields(c,S.priv[cid]||{}).map(x=>`${x.k}: ${x.v}`).join("\n");if(await copyText(t))toast("Todos os campos copiados.");else msgModal(t)};
+  const nf=$("#newForm");if(nf)nf.onclick=async()=>{
+    if(S.forms[cid]?.submitted_at&&!confirm("Gerar um link novo? O que o cliente mandar de novo substitui os dados atuais."))return;
+    nf.disabled=true;
+    try{const f=await store.createForm(cid);S.forms[cid]=f;renderFicha();if(await copyText(formURL(f.token)))toast("Link copiado. Mande para o cliente.")}
+    catch(e){console.error(e);toast("Não foi possível gerar o link.");nf.disabled=false}
+  };
+  const cf=$("#copyForm");if(cf)cf.onclick=async()=>{const u=$("#formLink").value;if(await copyText(u))toast("Link copiado.");else msgModal(u)};
+  $("#delClient").onclick=async()=>{
+    if(!confirm(`Excluir ${c.name}? A ficha, o contrato e todos os planejamentos dele serão apagados.`))return;
+    try{flushTimers();await store.deleteClient(cid);S.clients=S.clients.filter(x=>x.id!==cid);delete S.plans[cid];delete S.priv[cid];renderClients()}
+    catch(e){toast("Não foi possível excluir.")}
+  };
+}
+
+/* ---- formulário que o cliente preenche (abre pelo link, sem login) ---- */
+async function renderPublicForm(token){
+  document.title="Cadastro · 2L Digital Hub";$("#brandSub").textContent="Cadastro";renderTop();
+  const m=$("#main");m.innerHTML=`<div class="loading">Carregando…</div>`;
+  let info=null;try{info=await store.formInfo(token)}catch(e){console.error(e)}
+  const done=(t,s)=>{m.innerHTML=`<div class="pub"><div class="empty"><strong>${t}</strong>${s}</div></div>`};
+  if(!info)return done("Link inválido","Confira o link ou peça um novo para a equipe da 2L Digital Hub.");
+  if(info.submitted)return done("Recebemos seus dados","Obrigado! Este formulário já foi enviado. Se precisar corrigir algo, fale com a gente.");
+  const sec=(t,fields)=>`<section class="sec"><h2>${t}</h2><div class="grid2">${fields.map(([k,l,o])=>inputHTML(k,l,o,"")).join("")}</div></section>`;
+  m.innerHTML=`<form class="pub" id="pf" novalidate>
+    <h1>Dados para o contrato</h1><p class="sub" style="margin-bottom:22px">${esc(info.name)} · preencha uma vez, leva uns 3 minutos.</p>
+    ${sec("Dados da empresa",F_EMPRESA)}${sec("Representante legal",F_REPR)}${sec("Financeiro",F_FIN)}
+    <p class="hint" style="margin-bottom:14px">Usamos esses dados só para o contrato e a cobrança, conforme a LGPD.</p>
+    <button class="btn primary" id="pfSend" style="width:100%">Enviar</button></form>`;
+  bindMasks(m,F_CLIENT);
+  $("#pf").onsubmit=async e=>{
+    e.preventDefault();
+    const payload={};let bad=null;
+    m.querySelectorAll("input[data-k]").forEach(el=>{
+      const[k,,o]=F_CLIENT.find(x=>x[0]===el.dataset.k),v=el.value.trim(),wrong=(o.req&&!v)||!fieldOk(o,v)||(o.mask==="uf"&&v&&v.length!==2);
+      el.classList.toggle("bad",wrong);if(wrong&&!bad)bad=el;payload[k]=v;
+    });
+    if(bad){bad.focus();toast(bad.value.trim()?"Confira o campo marcado em vermelho.":"Preencha os campos obrigatórios (*).");return}
+    const b=$("#pfSend");b.disabled=true;b.textContent="Enviando…";
+    try{
+      if(!await store.submitForm(token,payload))return done("Este link já foi usado","Se precisar corrigir algo, fale com a gente.");
+      window.scrollTo(0,0);done("Recebemos seus dados","Obrigado! Já vamos preparar o seu contrato.");
+    }catch(err){console.error(err);toast("Não foi possível enviar. Confira a internet e tente de novo.");b.disabled=false;b.textContent="Enviar"}
+  };
+}
+
 /* =================== MODALS =================== */
 function modal(html){const w=document.createElement("div");w.className="modal";w.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(w);w.onclick=e=>{if(e.target===w)w.remove()};return w}
 function clientModal(c){
@@ -731,7 +1081,7 @@ function clientModal(c){
       <label class="toggle"><span>Social media</span><input type="checkbox" id="fSoc" ${c.social?"checked":""}></label>
       <p class="hint">O pacote fica salvo e vale para todos os meses. Só mude se o cliente trocar de plano.</p>
     </div>
-    <div class="foot">${isNew?"":`<button class="btn danger" id="fDel">Excluir cliente</button>`}<span class="spacer"></span>
+    <div class="foot">${isNew||!S.admin?"":`<button class="btn danger" id="fDel">Excluir cliente</button>`}<span class="spacer"></span>
       <button class="btn ghost" id="fCancel">Cancelar</button><button class="btn primary" id="fSave">${isNew?"Cadastrar":"Salvar"}</button></div>`);
   $("#fName",w).focus();
   const upd=()=>{const h=$("#fCalHint",w);if(!h)return;const ph=clientPhrases({name:$("#fName",w).value,calendar_name:$("#fCal",w).value});h.textContent=ph.length?"Na agenda vamos procurar por: "+ph.map(x=>"“"+x.d+"”").join(", ")+". Só preencha se o nome lá for bem diferente.":""};
@@ -740,14 +1090,15 @@ function clientModal(c){
   $("#fCancel",w).onclick=()=>w.remove();
   $("#fSave",w).onclick=async()=>{
     const name=$("#fName",w).value.trim();if(!name){toast("Coloque o nome do cliente.");$("#fName",w).focus();return}
-    const data={...(isNew?{}:{id:c.id}),name,calendar_name:($("#fCal",w)?.value||c.calendar_name||"").trim(),plan:$("#fPlan",w).value,
+    const today=new Date(),fresh=S.view==="clients"?{status:"onboarding",due_day:suggestDue(today),start_date:mkey(today)+"-"+pad(today.getDate())}:{};
+    const data={...(isNew?fresh:{id:c.id}),name,calendar_name:($("#fCal",w)?.value||c.calendar_name||"").trim(),plan:$("#fPlan",w).value,
       videos:Math.max(0,+$("#fVid",w).value||0),arts:Math.max(0,+$("#fArt",w).value||0),traffic:$("#fTraf",w).checked,social:$("#fSoc",w).checked};
     const b=$("#fSave",w);b.disabled=true;
     try{
       const saved=await store.saveClient(data);
       const i=S.clients.findIndex(x=>x.id===saved.id);if(i>=0)S.clients[i]=saved;else S.clients.push(saved);
       w.remove();
-      if(isNew){toast("Cliente cadastrado.");openClient(saved.id)}else renderEditor();
+      if(isNew){toast("Cliente cadastrado.");S.view==="clients"?openFicha(saved.id):openClient(saved.id)}else renderEditor();
     }catch(e){console.error(e);toast("Não foi possível salvar o cliente.");b.disabled=false}
   };
   const del=$("#fDel",w);
@@ -756,6 +1107,20 @@ function clientModal(c){
     try{await store.deleteClient(c.id);S.clients=S.clients.filter(x=>x.id!==c.id);delete S.plans[c.id];w.remove();S.view="list";S.clientId=null;S.draft=null;renderList()}
     catch(e){toast("Não foi possível excluir.")}
   };
+}
+// quem vê valores e dados do contrato; o login em si é criado no Supabase
+async function teamBox(box){
+  let rows=[];try{rows=(await store.listTeam()).filter(r=>r.role==="admin")}catch(e){box.innerHTML=`<p class="hint">Não foi possível carregar.</p>`;return}
+  box.innerHTML=rows.map(r=>`<div class="rowbtns"><span style="flex:1;font-size:13.5px">${esc(r.email)}</span><button class="btn ghost small" data-rm="${esc(r.email)}">Tirar</button></div>`).join("")
+    +`<div class="rowbtns"><input class="in" id="tEmail" type="email" placeholder="e-mail de login" style="flex:1"><button class="btn ghost small" id="tAdd">Adicionar</button></div>
+    <p class="hint">Veem valores, dados do contrato e o formulário do cliente. Quem não está aqui entra como equipe: vê só o pacote, os entregáveis e o vencimento.</p>`;
+  box.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
+    if(rows.length<2){toast("Precisa ficar pelo menos um administrador.");return}
+    if(!confirm(`Tirar ${b.dataset.rm} dos administradores?`))return;
+    try{await store.deleteTeam(b.dataset.rm);teamBox(box)}catch(e){toast("Não foi possível tirar.")}
+  });
+  $("#tAdd",box).onclick=async()=>{const e=$("#tEmail",box).value.trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e)){toast("Coloque um e-mail válido.");return}
+    try{await store.saveTeam(e,"admin");teamBox(box)}catch(err){toast("Não foi possível adicionar.")}};
 }
 function settingsModal(){
   const s=settings();
@@ -770,6 +1135,7 @@ function settingsModal(){
       <label class="field"><span>Só puxar eventos que tenham esta palavra (opcional)</span><input class="in" id="sKw" value="${esc(s.keyword)}" placeholder="Ex.: gravação"><p class="hint">Útil se o nome do cliente também aparece em reuniões. Deixe vazio para puxar todos os eventos com o nome dele.</p></label>
       <label class="field"><span>Feriados locais (um por linha)</span><textarea class="in" id="sHol" rows="2" placeholder="10/12 Aniversário de Londrina">${esc(s.holidays||"")}</textarea><p class="hint">Os feriados nacionais já são marcados sozinhos. Gravações em feriado aparecem como “a definir”.</p></label>`
       :`<p class="hint">A Google Agenda ainda não está ligada. Veja o passo 4 do README.</p>`}
+      ${S.admin&&!store.demo?`<h3>Administradores</h3><div id="sTeam" class="form" style="gap:8px"><p class="hint">Carregando…</p></div>`:""}
       <h3>Dados</h3>
       <div class="rowbtns"><button class="btn ghost small" id="sBackup">Baixar backup</button>
         <select class="in" id="sOld" style="width:auto"><option value="3">mais de 3 meses</option><option value="6" selected>mais de 6 meses</option><option value="12">mais de 12 meses</option></select>
@@ -778,6 +1144,7 @@ function settingsModal(){
       <label class="field"><span>Tema desta tela</span><select class="in" id="sTheme"><option value="">Igual ao aparelho</option><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
     </div>
     <div class="foot">${store.demo?"":`<button class="btn ghost" id="sOut">Sair</button>`}<span class="spacer"></span><button class="btn ghost" id="sCancel">Cancelar</button><button class="btn primary" id="sSave">Salvar</button></div>`);
+  if($("#sTeam",w))teamBox($("#sTeam",w));
   $("#sTheme",w).value=theme;
   $("#sTheme",w).onchange=e=>{applyTheme(e.target.value);try{localStorage.setItem("theme",e.target.value)}catch(_){}};
   $("#sCancel",w).onclick=()=>w.remove();
@@ -1005,8 +1372,11 @@ async function deliver(mode){
 async function loadAll(){
   $("#main").innerHTML=`<div class="loading">Carregando…</div>`;
   try{
-    const[clients,plans,st]=await Promise.all([store.listClients(),store.listPlans(S.month),store.getSettings()]);
-    S.clients=clients;S.plans=plans;S.settings=st||{};S.loaded=true;renderList();
+    const[clients,plans,st,admin]=await Promise.all([store.listClients(),store.listPlans(S.month),store.getSettings(),
+      store.isAdmin().catch(e=>{console.error(e);S.adminErr=true;return false})]);
+    S.clients=clients;S.plans=plans;S.settings=st||{};S.admin=admin;
+    if(admin)await refreshPrivate().catch(e=>{console.error(e);S.adminErr=true});
+    S.loaded=true;renderList();
   }catch(e){console.error(e);$("#main").innerHTML=`<div class="empty"><strong>Não foi possível carregar os dados</strong>Confira a internet e os dados do config.js. <br><br><button class="btn primary" onclick="loadAll()">Tentar de novo</button></div>`}
 }
 async function changeMonth(n){
@@ -1017,6 +1387,8 @@ async function changeMonth(n){
 $("#mPrev").onclick=()=>changeMonth(-1);
 $("#mNext").onclick=()=>changeMonth(1);
 $("#openSettings").onclick=settingsModal;
+$("#tabs").onclick=e=>{const b=e.target.closest("[data-tab]");if(!b)return;flushTimers();window.scrollTo(0,0);
+  if(b.dataset.tab==="plan"){S.view="list";S.clientId=null;S.draft=null;renderList()}else renderClients()};
 $("#themeBtn").onclick=()=>{const t=isDark()?"light":"dark";applyTheme(t);try{localStorage.setItem("theme",t)}catch(e){}};
 darkMQ.addEventListener("change",paintThemeBtn);
 let savedTheme="";try{savedTheme=localStorage.getItem("theme")||""}catch(e){}
@@ -1024,6 +1396,8 @@ applyTheme(savedTheme);
 renderTop();
 (async()=>{
   if(CFG.SUPABASE_URL&&!window.supabase){$("#main").innerHTML=`<div class="empty"><strong>Não foi possível carregar o Supabase</strong>Confira a internet e recarregue a página.</div>`;return}
+  const pub=location.hash.match(/^#cadastro=([\w-]+)$/);
+  if(pub)return renderPublicForm(pub[1]);
   if(await store.session())loadAll();else renderLogin();
 })();
 </script>

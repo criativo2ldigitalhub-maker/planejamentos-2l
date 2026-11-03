@@ -83,6 +83,26 @@ Na primeira vez que clicar em **Puxar da Google Agenda**, o Google abre uma jane
 - Se você mudar uma gravação na agenda depois de confirmar, ao puxar de novo aparece “A agenda agora diz…” com um botão para atualizar.
 - Se o nome na agenda for bem diferente do cadastro, coloque em **Editar pacote > Outros nomes na agenda**.
 
+## Clientes (ficha e contrato)
+
+A aba **Clientes** substitui o controle no ClickUp. Cada cliente tem uma ficha com:
+
+- **Pacote e entregáveis**, situação (onboarding, ativo, pausado, encerrado), dia de vencimento e início. **Toda a equipe vê.**
+- **Dados da empresa, representante legal, financeiro e contrato** (valor, forma de pagamento, taxa, fidelidade, observações do comercial). **Só administradores veem.** Isso é bloqueado no próprio banco, não só escondido na tela.
+
+**Administradores:** o `supabase.sql` já coloca o `adm@2ldigitalhub.com`. Se o seu login no Supabase for outro e-mail, troque no script antes de rodar. Depois, em **Ajustes > Administradores**, dá para incluir o comercial ou outra pessoa (a conta de login continua sendo criada no passo 1.4). Quem não está na lista entra como equipe.
+
+**Cliente novo:**
+1. **Clientes > Novo cliente**. Ele já entra em *onboarding*, com o vencimento sugerido (começou dia 3, vence dia 10).
+2. Na ficha, escolha o plano e preencha o **Contrato** com o que foi alinhado com o comercial.
+3. Clique em **Gerar link do formulário** e mande para o cliente. Ele preenche os dados da empresa, do representante e do financeiro, e tudo cai direto na ficha. O link vale uma vez só.
+4. Em **Para o contrato no D4Sign**, cada campo aparece com o mesmo nome do modelo e um botão **Copiar**. Os que faltam ficam em vermelho.
+5. Quando assinar, mude a situação para **Ativo**.
+
+Clientes pausados ou encerrados saem da lista de planejamentos, mas a ficha continua guardada.
+
+> Depois de atualizar o site, **rode de novo o `supabase.sql` inteiro** (SQL Editor > New query > Run). Ele só acrescenta o que falta, não apaga nada.
+
 ## Rotina do mês
 
 1. Escolha o mês no topo.
