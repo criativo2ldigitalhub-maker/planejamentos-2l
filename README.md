@@ -1,6 +1,6 @@
 # Planejamentos 2L
 
-Plataforma para montar o planejamento mensal dos clientes: pacote, datas de gravação (puxadas da Google Agenda) e artes por semana. Gera um arquivo pronto para mandar ao cliente pelo WhatsApp, com botão de salvar em PDF.
+Plataforma para montar o planejamento mensal dos clientes: pacote, datas de gravação (puxadas da Google Agenda) e artes por semana. Gera um arquivo pronto para mandar ao cliente pelo WhatsApp.
 
 Tudo é gratuito: o site fica no **GitHub Pages**, os dados e as artes ficam no **Supabase** (plano free) e a agenda é lida pela **API do Google Calendar**.
 
@@ -88,5 +88,5 @@ Na primeira vez que clicar em **Puxar da Google Agenda**, o Google abre uma jane
 1. Escolha o mês no topo.
 2. Abra cada cliente e clique em **Puxar da Google Agenda**. Confira as gravações sugeridas e arraste as artes **na ordem**. Elas são divididas sozinhas pelas semanas conforme o pacote (4 artes = uma por semana, 8 artes = duas por semana). Dá para trocar a semana de cada uma.
    **Carrossel:** suba só a capa como arte e, no cartão dela, clique em **+ Adicionar cards** (ou arraste as imagens em cima dela). O carrossel conta como uma arte do pacote e o cliente vê a capa e desliza para os outros cards. A seta ← no card 2 transforma ele em capa.
-3. **Visualizar** para conferir, **Baixar arquivo** ou **Compartilhar** (no celular abre direto o WhatsApp).
+3. **Visualizar** para conferir, **Baixar arquivo** ou **Compartilhar** (no celular abre direto o WhatsApp; no computador, **Enviar no WhatsApp Web** baixa o arquivo e abre o WhatsApp Web para você anexar na conversa).
 4. Marque **Enviado ao cliente**. A lista mostra quem falta.

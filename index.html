@@ -548,11 +548,13 @@ function renderEditor(){
       <div class="sechead"><h2>Recado para o cliente</h2><span class="count">Opcional, aparece no fim do planejamento</span></div>
       <textarea class="in" id="notes" rows="3" placeholder="Ex.: deixem os carros novos lavados no dia da gravação.">${esc(d.notes||"")}</textarea>
     </section>`;
-  const canShare=(()=>{try{return !!(navigator.canShare&&navigator.canShare({files:[new File(["x"],"x.html",{type:"text/html"})]}))}catch(e){return false}})();
+  // celular: menu de compartilhar do aparelho; computador: baixa o arquivo e abre o WhatsApp Web
+  const mobile=matchMedia("(pointer:coarse)").matches;
+  const canShare=mobile&&(()=>{try{return !!(navigator.canShare&&navigator.canShare({files:[new File(["x"],"x.html",{type:"text/html"})]}))}catch(e){return false}})();
   $("#layer").innerHTML=`<div class="actions"><div class="actions-in">
     <label class="sent"><input type="checkbox" id="sent" ${d.sent?"checked":""}> Enviado ao cliente</label>
     <button class="btn ghost" id="preview">Visualizar</button>
-    ${canShare?`<button class="btn ghost" id="share">Compartilhar</button>`:""}
+    ${canShare?`<button class="btn ghost" id="share">Compartilhar</button>`:mobile?"":`<button class="btn ghost" id="wa">Enviar no WhatsApp Web</button>`}
     <button class="btn primary" id="download">Baixar arquivo</button></div></div>`;
   bindEditor();
 }
@@ -664,6 +666,7 @@ function bindEditor(){
   $("#preview").onclick=openPreview;
   $("#download").onclick=()=>deliver("download");
   const sh=$("#share");if(sh)sh.onclick=()=>deliver("share");
+  const wa=$("#wa");if(wa)wa.onclick=()=>deliver("whatsapp");
 }
 function spreadWeeks(d,c,from){
   const nw=weeks(d.month).length,total=Math.max(+c.arts||0,d.arts.length),per=Math.max(1,Math.ceil(total/4));
@@ -820,7 +823,9 @@ function docHTML(c,p,s,img){
   const fig=a=>{const cs=(a.cards||[]).filter(k=>k.url),fc=a.caption?`<figcaption>${esc(a.caption)}</figcaption>`:"";
     if(!cs.length)return `<figure>${pic(a,"Arte")}${fc}</figure>`;
     const all=[a,...cs];
-    return `<figure class="car"><div class="slides">${all.map((k,i)=>pic(k,`Card ${i+1} de ${all.length}`)).join("")}</div><div class="cartag"><b>Carrossel · ${all.length} cards</b><span>deslize para o lado</span></div>${fc}</figure>`};
+    return `<figure class="car"><div class="carw"><div class="slides">${all.map((k,i)=>pic(k,`Card ${i+1} de ${all.length}`)).join("")}</div>
+      <button class="nav prev" aria-label="Card anterior">‹</button><button class="nav next" aria-label="Próximo card">›</button></div>
+      <div class="cartag"><b>Carrossel · ${all.length} cards</b><span class="pos">1 de ${all.length}</span><span class="swipe">deslize para o lado</span></div>${fc}</figure>`};
   let artBlocks="";
   wk.forEach((r,i)=>{const items=arts.filter(a=>+a.week===i+1);if(items.length)artBlocks+=`<div class="wk"><div class="wkh"><b>Semana ${i+1}</b><span>${weekRange(p.month,i+1)}</span></div><div class="arts">${items.map(fig).join("")}</div></div>`});
   const loose=arts.filter(a=>!(+a.week>=1&&+a.week<=wk.length));
@@ -877,18 +882,22 @@ figcaption{white-space:pre-wrap;font-size:14px;color:#c9c9c4;margin-top:10px;lin
 .cartag{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13px}
 .cartag b{color:var(--o);font-weight:600}
 .cartag span{color:#8f8f89}
+.carw{position:relative}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:999px;border:0;background:rgba(10,10,10,.72);color:#fff;font:400 26px/1 Poppins,system-ui,sans-serif;padding-bottom:4px;cursor:pointer;transition:opacity .15s}
+.nav:hover{background:var(--o);color:#0a0a0a}
+.nav.prev{left:10px}.nav.next{right:10px}
+.nav:disabled{opacity:0;pointer-events:none}
+@media(hover:hover){.cartag .swipe{display:none}}
 .note{background:#1a0f08;border-left:3px solid var(--o);border-radius:0 12px 12px 0;padding:18px 20px;white-space:pre-wrap;max-width:70ch}
-.end{text-align:center;border:0;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+.end{text-align:center;border:0;padding-bottom:calc(clamp(28px,6vw,64px) + env(safe-area-inset-bottom,0px))}
 .end .logo{margin:0 auto 36px;align-self:auto}
 .end h2{max-width:18ch;margin:0 auto 28px}
 .contacts{display:flex;flex-wrap:wrap;justify-content:center;gap:14px 36px}
 .contacts div{font-size:12px;color:#8f8f89}
 .contacts b{display:block;font-size:15px;color:#f3f3f1;font-weight:600}
 .motto{margin-top:36px;color:#6f6f6a;font-style:italic;font-size:14px}
-.pdf{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--o);color:#0a0a0a;border:0;border-radius:999px;padding:12px 20px;font:600 14px Poppins,system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.5)}
 @media print{
   @page{size:A4;margin:0}
-  .pdf{display:none}
   .pg{max-width:none;break-after:page;border:0;padding:16mm 14mm}
   .cover{min-height:auto;height:297mm;padding:18mm 16mm}
   .tiles{grid-template-columns:repeat(4,1fr)}
@@ -896,7 +905,7 @@ figcaption{white-space:pre-wrap;font-size:14px;color:#c9c9c4;margin-top:10px;lin
   figure.car{grid-column:1/-1}
   .slides{display:grid;grid-template-columns:repeat(5,1fr);overflow:visible;border-radius:0}
   .slides img{border-radius:8px}
-  .cartag span{display:none}
+  .cartag span,.nav{display:none}
   .wk{break-inside:avoid}
   .end{break-after:auto}
 }
@@ -921,7 +930,17 @@ ${p.notes?`<section class="pg"><h2>Recado da equipe</h2><div class="note">${esc(
   <div class="contacts">${s.instagram?`<div>Instagram<b>${esc(s.instagram)}</b></div>`:""}${s.site?`<div>Site<b>${esc(s.site)}</b></div>`:""}${s.whatsapp?`<div>WhatsApp<b>${esc(s.whatsapp)}</b></div>`:""}</div>
   <p class="motto">É melhor que sejam 2.</p>
 </section>
-<button class="pdf" onclick="window.print()">Salvar em PDF</button>
+<script>
+document.querySelectorAll(".carw").forEach(function(w){
+  var s=w.querySelector(".slides"),n=s.children.length,prev=w.querySelector(".prev"),next=w.querySelector(".next"),pos=w.parentNode.querySelector(".pos");
+  var step=function(){return s.clientWidth+10},cur=0,lock=0;
+  var go=function(d){cur=Math.max(0,Math.min(n-1,cur+d));lock=Date.now()+700;s.scrollTo({left:cur*step(),behavior:"smooth"});show(cur)};
+  var show=function(i){pos.textContent=(i+1)+" de "+n;prev.disabled=i===0;next.disabled=i>=n-1};
+  prev.onclick=function(){go(-1)};next.onclick=function(){go(1)};
+  var upd=function(){if(Date.now()<lock)return;cur=Math.min(n-1,Math.round(s.scrollLeft/step()));show(cur)};
+  s.addEventListener("scroll",upd,{passive:true});upd();
+});
+<\/script>
 </body></html>`;
 }
 function openPreview(){
@@ -935,7 +954,9 @@ function saveFile(blob,name){const a=document.createElement("a");a.href=URL.crea
 async function deliver(mode){
   const c=client();if(!c)return;
   if(S.uploads>0){toast("Espere as artes terminarem de enviar.");return}
-  const btn=mode==="share"?$("#share"):$("#download"),label=btn.textContent;btn.disabled=true;btn.textContent="Preparando…";
+  // abre já no clique, senão o navegador bloqueia a nova aba; o nome reaproveita a aba do WhatsApp se já estiver aberta
+  if(mode==="whatsapp")window.open("https://web.whatsapp.com/","whatsapp-web");
+  const btn=$({share:"#share",whatsapp:"#wa"}[mode]||"#download"),label=btn.textContent;btn.disabled=true;btn.textContent="Preparando…";
   try{
     const p=serializePlan(S.draft),imgs={};
     for(const a of p.arts.flatMap(a=>a.gone?[]:[a,...a.cards])){if(!a.url)continue;
@@ -947,7 +968,8 @@ async function deliver(mode){
     if(mode==="share"){
       try{await navigator.share({files:[new File([blob],name,{type:"text/html"})],title:name})}
       catch(e){if(e&&e.name!=="AbortError")saveFile(blob,name)}
-    }else{saveFile(blob,name);toast("Arquivo baixado. É só mandar para o cliente.")}
+    }else if(mode==="whatsapp"){saveFile(blob,name);toast("Arquivo baixado. No WhatsApp Web, abra a conversa do cliente e anexe pelo clipe › Documento.",8000)}
+    else{saveFile(blob,name);toast("Arquivo baixado. É só mandar para o cliente.")}
   }catch(e){console.error(e);toast("Não foi possível gerar o arquivo.")}
   btn.disabled=false;btn.textContent=label;
 }
