@@ -814,6 +814,21 @@ function paintThemeBtn(){const b=$("#themeBtn"),d=isDark(),t=d?"Usar modo claro"
 function applyTheme(t){if(t)document.documentElement.dataset.theme=t;else delete document.documentElement.dataset.theme;paintThemeBtn()}
 
 /* =================== CLIENT DOCUMENT =================== */
+const fmtHour=t=>t?t.replace(/^0(\d)/,"$1").replace(/:00$/,"h").replace(":","h"):"";
+// texto que vai junto do arquivo no grupo do cliente (negrito e itálico do WhatsApp)
+function waMessage(c,p){
+  const recs=(p.recordings||[]).filter(r=>r.date&&r.status!=="sugerida").sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const lines=[`Olá, pessoal da *${c.name}*! 👋`,"",`Segue o planejamento de *${monthName(p.month)} de ${p.month.split("-")[0]}* 🗓️ (arquivo logo abaixo).`];
+  if(recs.length)lines.push("","🎬 *Datas de gravação*",...recs.map(r=>{const d=pdate(r.date);
+    return `• ${cap(WEEK[d.getDay()])}, ${fmtShort(r.date)}${r.time?` às ${fmtHour(r.time)}`:""}${r.status==="adefinir"?" _(a definir)_":""}${r.note?` – ${r.note}`:""}`}));
+  lines.push("","Qualquer ajuste, é só chamar a gente!");
+  return lines.join("\n");
+}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true}
+  catch(e){const a=document.createElement("textarea");a.value=t;a.style.cssText="position:fixed;opacity:0";document.body.appendChild(a);a.select();
+    let ok=false;try{ok=document.execCommand("copy")}catch(_){}a.remove();return ok}
+}
 function docHTML(c,p,s,img){
   const mn=monthName(p.month),yr=p.month.split("-")[0],wk=weeks(p.month);
   const recs=(p.recordings||[]).filter(r=>r.date&&r.status!=="sugerida").sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
@@ -830,7 +845,7 @@ function docHTML(c,p,s,img){
   wk.forEach((r,i)=>{const items=arts.filter(a=>+a.week===i+1);if(items.length)artBlocks+=`<div class="wk"><div class="wkh"><b>Semana ${i+1}</b><span>${weekRange(p.month,i+1)}</span></div><div class="arts">${items.map(fig).join("")}</div></div>`});
   const loose=arts.filter(a=>!(+a.week>=1&&+a.week<=wk.length));
   if(loose.length)artBlocks+=`<div class="wk"><div class="wkh"><b>Outras artes do mês</b></div><div class="arts">${loose.map(fig).join("")}</div></div>`;
-  const time=t=>t?t.replace(/:00$/,"h").replace(":","h"):"";
+  const time=fmtHour;
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Planejamento ${cap(mn)} ${yr} · ${esc(c.name)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -950,11 +965,20 @@ function openPreview(){
   document.body.appendChild(w);w.querySelector("iframe").srcdoc=html;
   $("#pvClose",w).onclick=()=>w.remove();
 }
+// quando o navegador não deixa copiar sozinho
+function msgModal(msg){
+  const w=modal(`<h2>Mensagem para o grupo</h2><div class="form"><textarea class="in" id="mText" rows="12">${esc(msg)}</textarea>
+    <p class="hint">Copie, cole no grupo do cliente junto com o arquivo e fixe a mensagem por 30 dias.</p></div>
+    <div class="foot"><span class="spacer"></span><button class="btn ghost" id="mClose">Fechar</button><button class="btn primary" id="mCopy">Copiar</button></div>`);
+  $("#mClose",w).onclick=()=>w.remove();
+  $("#mCopy",w).onclick=async()=>{if(await copyText($("#mText",w).value)){toast("Mensagem copiada.");w.remove()}else{$("#mText",w).select();toast("Selecionei o texto, use Ctrl+C.")}};
+}
 function saveFile(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)}
 async function deliver(mode){
   const c=client();if(!c)return;
   if(S.uploads>0){toast("Espere as artes terminarem de enviar.");return}
   // abre já no clique, senão o navegador bloqueia a nova aba; o nome reaproveita a aba do WhatsApp se já estiver aberta
+  const msg=waMessage(c,S.draft),copied=mode==="download"?null:copyText(msg);
   if(mode==="whatsapp")window.open("https://web.whatsapp.com/","whatsapp-web");
   const btn=$({share:"#share",whatsapp:"#wa"}[mode]||"#download"),label=btn.textContent;btn.disabled=true;btn.textContent="Preparando…";
   try{
@@ -966,9 +990,12 @@ async function deliver(mode){
     const name=`Planejamento ${cap(monthName(p.month))} ${p.month.split("-")[0]} - ${c.name}`.replace(/[\\/:*?"<>|]+/g,"").trim()+".html";
     const blob=new Blob([html],{type:"text/html"});
     if(mode==="share"){
-      try{await navigator.share({files:[new File([blob],name,{type:"text/html"})],title:name})}
+      if(await copied)toast("Mensagem copiada. Depois de enviar o arquivo, cole a mensagem no grupo.",6000);else msgModal(msg);
+      try{await navigator.share({files:[new File([blob],name,{type:"text/html"})],title:name,text:msg})}
       catch(e){if(e&&e.name!=="AbortError")saveFile(blob,name)}
-    }else if(mode==="whatsapp"){saveFile(blob,name);toast("Arquivo baixado. No WhatsApp Web, abra a conversa do cliente e anexe pelo clipe › Documento.",8000)}
+    }else if(mode==="whatsapp"){saveFile(blob,name);
+      if(await copied)toast("Mensagem copiada e arquivo baixado. No grupo do cliente: cole a mensagem (Ctrl+V), anexe o arquivo pelo clipe › Documento e fixe a mensagem por 30 dias.",14000);
+      else msgModal(msg)}
     else{saveFile(blob,name);toast("Arquivo baixado. É só mandar para o cliente.")}
   }catch(e){console.error(e);toast("Não foi possível gerar o arquivo.")}
   btn.disabled=false;btn.textContent=label;
