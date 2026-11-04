@@ -93,7 +93,7 @@ A aba **Clientes** substitui o controle no ClickUp. Cada cliente tem uma ficha c
 **Acessos:** cada login tem um perfil.
 - **Administrador**: vê tudo, inclusive valores e contrato.
 - **Equipe**: planejamentos e clientes, sem valores.
-- **Só planejamentos**: não vê a aba Clientes nem edita pacotes.
+- **Só planejamentos**: cadastra clientes e edita pacotes pelos planejamentos, mas não vê a aba Clientes.
 
 O `supabase.sql` já coloca `adm@2ldigitalhub.com` e `criativo.2ldigitalhub@gmail.com` como administradores e `sm2.2ldigitalhub@gmail.com` como só planejamentos. Depois é só mudar em **Ajustes > Acessos** (a conta de login continua sendo criada no passo 1.4). Quem não está na lista entra como equipe.
 

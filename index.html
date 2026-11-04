@@ -544,10 +544,10 @@ function renderList(){
     ${store.demo?`<div class="banner">Modo demonstração: os dados ficam só neste navegador. Siga o README para ligar o Supabase e salvar de verdade.</div>`:""}
     <div class="listhead"><div class="grow"><h1>Planejamento de ${monthName(S.month)}</h1>
       <p class="sub">${counts.sent} de ${counts.all} clientes já receberam o planejamento deste mês.</p></div>
-      ${S.planOnly?"":`<button class="btn primary" id="newClient">Novo cliente</button>`}</div>
+      <button class="btn primary" id="newClient">Novo cliente</button></div>
     ${all.length?`<div class="tools"><input class="search" id="q" type="search" placeholder="Buscar cliente" value="${esc(S.q)}"><div class="seg">${seg}</div></div>`:""}
     <div class="clients">${
-      !all.length?`<div class="empty"><strong>Nenhum cliente cadastrado</strong>${S.planOnly?"Os clientes são cadastrados por um administrador.":"Cadastre cada cliente uma vez, com o pacote dele. Depois, todo mês, é só abrir e subir as artes."}</div>`
+      !all.length?`<div class="empty"><strong>Nenhum cliente cadastrado</strong>Cadastre cada cliente uma vez, com o pacote dele. Depois, todo mês, é só abrir e subir as artes.</div>`
       :!list.length?`<div class="empty">Nenhum cliente nesse filtro.</div>`
       :list.map(c=>{const s=status(c),p=S.plans[c.id],rs=p?(p.recordings||[]):[],nr=rs.filter(r=>r.date&&r.status!=="sugerida").length,ns=rs.filter(r=>r.status==="sugerida").length;
         return `<button class="row" data-id="${c.id}"><div><div class="name">${esc(c.name)}</div><div class="pkg">${esc(pkgText(c))}${nr?`, ${nr} ${nr===1?"gravação":"gravações"}`:""}${c.due_day?` · vence dia ${+c.due_day}`:""}${ns?`<span class="warn">${ns} da agenda para conferir</span>`:""}</div></div><span class="pill ${s.k}">${s.t}</span></button>`}).join("")
@@ -575,7 +575,7 @@ function renderEditor(){
     <div class="ehead"><div class="grow"><h1>${esc(c.name)}</h1>
       <p class="sub">Planejamento de ${monthName(d.month)} de ${d.month.split("-")[0]}</p>
       <div class="pkgline">${pkgChips(c)}</div>${c.pkg_notes?`<p class="hint" style="margin-top:8px">${esc(c.pkg_notes)}</p>`:""}</div>
-      ${S.planOnly?"":`<button class="btn ghost" id="editClient">Editar pacote</button>`}</div>
+      <button class="btn ghost" id="editClient">Editar pacote</button></div>
 
     <section class="sec">
       <div class="sechead"><h2>Artes</h2><span class="count ${target&&n>=target?"ok":""}">${n}${target?` de ${target} do pacote`:""}</span>
@@ -1117,7 +1117,7 @@ async function teamBox(box){
   const sel=(v,attr)=>`<select class="in" ${attr} style="width:auto">${Object.entries(ROLES).map(([k,t])=>`<option value="${k}" ${k===v?"selected":""}>${t}</option>`).join("")}</select>`;
   box.innerHTML=rows.map(r=>`<div class="rowbtns"><span style="flex:1;min-width:160px;font-size:13.5px;word-break:break-all">${esc(r.email)}</span>${sel(r.role,`data-role="${esc(r.email)}"`)}<button class="btn ghost small" data-rm="${esc(r.email)}">Tirar</button></div>`).join("")
     +`<div class="rowbtns"><input class="in" id="tEmail" type="email" placeholder="e-mail de login" style="flex:1;min-width:160px">${sel("planejamento",'id="tRole"')}<button class="btn ghost small" id="tAdd">Adicionar</button></div>
-    <p class="hint"><b>Administrador</b> vê tudo, inclusive valores e contrato. <b>Equipe</b> vê planejamentos e clientes, sem valores. <b>Só planejamentos</b> não vê a aba de clientes nem edita pacotes. Quem não está na lista entra como equipe.</p>`;
+    <p class="hint"><b>Administrador</b> vê tudo, inclusive valores e contrato. <b>Equipe</b> vê planejamentos e clientes, sem valores. <b>Só planejamentos</b> cadastra clientes e pacotes pelos planejamentos, mas não vê a aba Clientes. Quem não está na lista entra como equipe.</p>`;
   const admins=()=>rows.filter(r=>r.role==="admin").length;
   box.querySelectorAll("[data-role]").forEach(s=>s.onchange=async()=>{
     const r=rows.find(x=>x.email===s.dataset.role);

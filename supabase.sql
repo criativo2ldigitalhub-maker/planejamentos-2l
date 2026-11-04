@@ -37,7 +37,7 @@ create table if not exists settings (
 -- Perfil de cada login. Quem não está aqui entra como equipe.
 --   admin        vê tudo, inclusive valores e dados do contrato
 --   equipe       planejamentos e clientes, sem valores
---   planejamento só a parte de planejamentos
+--   planejamento só a parte de planejamentos (cadastra cliente e pacote, sem a aba Clientes)
 create table if not exists team (
   email text primary key,
   role text not null default 'equipe'
@@ -133,8 +133,8 @@ drop policy if exists "admin" on team;
 drop policy if exists "admin" on client_private;
 drop policy if exists "admin" on client_forms;
 create policy "equipe le"    on clients for select to authenticated using (true);
-create policy "equipe cria"  on clients for insert to authenticated with check (my_role() <> 'planejamento');
-create policy "equipe edita" on clients for update to authenticated using (my_role() <> 'planejamento') with check (my_role() <> 'planejamento');
+create policy "equipe cria"  on clients for insert to authenticated with check (true);
+create policy "equipe edita" on clients for update to authenticated using (true) with check (true);
 create policy "admin apaga"  on clients for delete to authenticated using (is_admin());
 create policy "equipe" on plans    for all to authenticated using (true) with check (true);
 create policy "equipe" on settings for all to authenticated using (true) with check (true);
