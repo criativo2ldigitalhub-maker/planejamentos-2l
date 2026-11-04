@@ -90,7 +90,12 @@ A aba **Clientes** substitui o controle no ClickUp. Cada cliente tem uma ficha c
 - **Pacote e entregáveis**, situação (onboarding, ativo, pausado, encerrado), dia de vencimento e início. **Toda a equipe vê.**
 - **Dados da empresa, representante legal, financeiro e contrato** (valor, forma de pagamento, taxa, fidelidade, observações do comercial). **Só administradores veem.** Isso é bloqueado no próprio banco, não só escondido na tela.
 
-**Administradores:** o `supabase.sql` já coloca o `adm@2ldigitalhub.com`. Se o seu login no Supabase for outro e-mail, troque no script antes de rodar. Depois, em **Ajustes > Administradores**, dá para incluir o comercial ou outra pessoa (a conta de login continua sendo criada no passo 1.4). Quem não está na lista entra como equipe.
+**Acessos:** cada login tem um perfil.
+- **Administrador**: vê tudo, inclusive valores e contrato.
+- **Equipe**: planejamentos e clientes, sem valores.
+- **Só planejamentos**: não vê a aba Clientes nem edita pacotes.
+
+O `supabase.sql` já coloca `adm@2ldigitalhub.com` e `criativo.2ldigitalhub@gmail.com` como administradores e `sm2.2ldigitalhub@gmail.com` como só planejamentos. Depois é só mudar em **Ajustes > Acessos** (a conta de login continua sendo criada no passo 1.4). Quem não está na lista entra como equipe.
 
 **Cliente novo:**
 1. **Clientes > Novo cliente**. Ele já entra em *onboarding*, com o vencimento sugerido (começou dia 3, vence dia 10).

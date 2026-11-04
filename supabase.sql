@@ -34,13 +34,21 @@ create table if not exists settings (
   data jsonb default '{}'::jsonb
 );
 
--- Quem é administrador. Quem não está aqui entra como equipe.
+-- Perfil de cada login. Quem não está aqui entra como equipe.
+--   admin        vê tudo, inclusive valores e dados do contrato
+--   equipe       planejamentos e clientes, sem valores
+--   planejamento só a parte de planejamentos
 create table if not exists team (
   email text primary key,
-  role text not null default 'equipe' check (role in ('admin','equipe'))
+  role text not null default 'equipe'
 );
-insert into team (email, role) values ('adm@2ldigitalhub.com', 'admin')
-on conflict (email) do update set role = 'admin';
+alter table team drop constraint if exists team_role_check;
+alter table team add constraint team_role_check check (role in ('admin','equipe','planejamento'));
+insert into team (email, role) values
+  ('adm@2ldigitalhub.com', 'admin'),
+  ('criativo.2ldigitalhub@gmail.com', 'admin'),
+  ('sm2.2ldigitalhub@gmail.com', 'planejamento')
+on conflict (email) do nothing;   -- depois, mude os perfis em Ajustes > Acessos
 
 -- Dados do contrato e cadastrais (valores, CPF, endereço…): só administrador
 create table if not exists client_private (
@@ -60,6 +68,11 @@ create table if not exists client_forms (
 create or replace function is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from team where lower(email) = lower(auth.jwt() ->> 'email') and role = 'admin')
+$$;
+
+create or replace function my_role() returns text
+language sql stable security definer set search_path = public as $$
+  select coalesce((select role from team where lower(email) = lower(auth.jwt() ->> 'email')), 'equipe')
 $$;
 
 -- grava só os campos alterados, sem apagar o que o cliente mandou pelo formulário
@@ -120,8 +133,8 @@ drop policy if exists "admin" on team;
 drop policy if exists "admin" on client_private;
 drop policy if exists "admin" on client_forms;
 create policy "equipe le"    on clients for select to authenticated using (true);
-create policy "equipe cria"  on clients for insert to authenticated with check (true);
-create policy "equipe edita" on clients for update to authenticated using (true) with check (true);
+create policy "equipe cria"  on clients for insert to authenticated with check (my_role() <> 'planejamento');
+create policy "equipe edita" on clients for update to authenticated using (my_role() <> 'planejamento') with check (my_role() <> 'planejamento');
 create policy "admin apaga"  on clients for delete to authenticated using (is_admin());
 create policy "equipe" on plans    for all to authenticated using (true) with check (true);
 create policy "equipe" on settings for all to authenticated using (true) with check (true);
