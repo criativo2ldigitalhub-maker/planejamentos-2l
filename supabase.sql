@@ -18,6 +18,17 @@ alter table clients add column if not exists due_day int;                  -- di
 alter table clients add column if not exists start_date date;
 alter table clients add column if not exists pkg_notes text default '';
 
+-- regra: nome do cliente sempre em caixa alta (acentos também)
+create or replace function nome_maiusculo(t text) returns text language sql immutable as $$
+  select upper(translate(btrim(regexp_replace(t, '\s+', ' ', 'g')), 'áàâãäéèêëíìîïóòôõöúùûüç', 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇ'))
+$$;
+create or replace function clients_nome_maiusculo() returns trigger language plpgsql as $$
+begin new.name := nome_maiusculo(new.name); return new; end $$;
+drop trigger if exists nome_maiusculo on clients;
+create trigger nome_maiusculo before insert or update of name on clients
+for each row execute function clients_nome_maiusculo();
+update clients set name = nome_maiusculo(name) where name <> nome_maiusculo(name);
+
 create table if not exists plans (
   client_id uuid not null references clients(id) on delete cascade,
   month text not null,                 -- formato 2026-11

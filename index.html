@@ -258,6 +258,7 @@ const DEFAULT_SETTINGS={instagram:"@2ldigitalhub",site:"www.2ldigitalhub.com.br"
 const $=(s,r=document)=>r.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const upName=s=>String(s||"").trim().replace(/\s+/g," ").toLocaleUpperCase("pt-BR");   // regra: nome de cliente sempre em caixa alta
 const pad=n=>String(n).padStart(2,"0");
 const mkey=d=>d.getFullYear()+"-"+pad(d.getMonth()+1);
 const shiftMonth=(k,n)=>{const[y,m]=k.split("-").map(Number);return mkey(new Date(y,m-1+n,1))};
@@ -321,7 +322,8 @@ function makeSupaStore(){
     async saveTeam(email,role){ok(await sb.from("team").upsert({email,role}))},
     async deleteTeam(email){ok(await sb.from("team").delete().eq("email",email))},
     async listClients(){return ok(await sb.from("clients").select("*"))},
-    async saveClient(c){const row={...c};if(!row.id)delete row.id;return ok(await sb.from("clients").upsert(row).select().single())},
+    async saveClient(c){const{id,...row}=c;
+      return ok(await(id?sb.from("clients").update(row).eq("id",id):sb.from("clients").insert(row)).select().single())},
     async deleteClient(id){ok(await sb.from("clients").delete().eq("id",id))},
     async listPlans(month){const out={};for(const p of ok(await sb.from("plans").select("*").eq("month",month)))out[p.client_id]=p;return out},
     async savePlan(p){ok(await sb.from("plans").upsert({...p,updated_at:new Date().toISOString()}))},
@@ -934,7 +936,7 @@ function renderFicha(){
     <section class="sec" id="pkgSec">
       <div class="sechead"><h2>Pacote e entregáveis</h2><span class="count">Toda a equipe vê esta parte</span></div>
       <div class="grid2">
-        <label class="field"><span>Nome do cliente</span><input class="in" id="kName" value="${esc(c.name)}"></label>
+        <label class="field"><span>Nome do cliente</span><input class="in" id="kName" value="${esc(c.name)}" style="text-transform:uppercase"></label>
         <label class="field"><span>Situação</span><select class="in" id="kStatus">${Object.entries(STATUS).map(([k,t])=>`<option value="${k}" ${st===k?"selected":""}>${t}</option>`).join("")}</select></label>
         <label class="field"><span>Plano</span><select class="in" id="kPlan">${opts}</select></label>
         <label class="field"><span>Dia de vencimento</span><select class="in" id="kDue">${optsHTML(D4.dias,c.due_day,"Sem dia definido")}</select></label>
@@ -998,7 +1000,7 @@ function bindFicha(c){
   const chg=(fn,re)=>()=>{fn();saveClientSoon(c);re?renderFicha():paintD4()};
   $("#back").onclick=renderClients;
   const tp=$("#toPlan");if(tp)tp.onclick=()=>{flushTimers();openClient(cid)};
-  $("#kName").oninput=e=>{const v=e.target.value.trim();if(!v)return;c.name=v;saveClientSoon(c);$("h1",m).textContent=v};
+  $("#kName").oninput=e=>{const v=upName(e.target.value);if(!v)return;c.name=v;saveClientSoon(c);$("h1",m).textContent=v};
   $("#kStatus").onchange=chg(()=>{c.status=$("#kStatus").value},true);
   $("#kPlan").onchange=chg(()=>{c.plan=$("#kPlan").value;const p=PLANS[c.plan];if(p)Object.assign(c,p)},true);
   $("#kDue").onchange=chg(()=>{c.due_day=+$("#kDue").value||null},true);
@@ -1074,7 +1076,7 @@ function clientModal(c){
   const opts=Object.keys(PLANS).map(p=>`<option ${c.plan===p?"selected":""}>${p}</option>`).join("");
   const w=modal(`<h2>${isNew?"Novo cliente":"Pacote do cliente"}</h2>
     <div class="form">
-      <label class="field"><span>Nome do cliente</span><input class="in" id="fName" value="${esc(c.name)}" placeholder="Ex.: Valoriza Veículos"></label>
+      <label class="field"><span>Nome do cliente</span><input class="in" id="fName" value="${esc(c.name)}" placeholder="Ex.: VALORIZA VEÍCULOS" style="text-transform:uppercase"></label>
       ${gEnabled()?`<label class="field"><span>Outros nomes na agenda (opcional)</span><input class="in" id="fCal" value="${esc(c.calendar_name||"")}" placeholder="Ex.: BCar, Black"><p class="hint" id="fCalHint"></p></label>`:""}
       <label class="field"><span>Plano</span><select class="in" id="fPlan">${opts}</select></label>
       <div class="two"><label class="field"><span>Vídeos por mês</span><input class="in" id="fVid" type="number" min="0" value="${+c.videos||0}"></label>
@@ -1091,7 +1093,7 @@ function clientModal(c){
   $("#fPlan",w).onchange=e=>{const p=PLANS[e.target.value];if(!p)return;$("#fVid",w).value=p.videos;$("#fArt",w).value=p.arts;$("#fTraf",w).checked=p.traffic;$("#fSoc",w).checked=p.social};
   $("#fCancel",w).onclick=()=>w.remove();
   $("#fSave",w).onclick=async()=>{
-    const name=$("#fName",w).value.trim();if(!name){toast("Coloque o nome do cliente.");$("#fName",w).focus();return}
+    const name=upName($("#fName",w).value);if(!name){toast("Coloque o nome do cliente.");$("#fName",w).focus();return}
     const today=new Date(),fresh=S.view==="clients"?{status:"onboarding",due_day:suggestDue(today),start_date:mkey(today)+"-"+pad(today.getDate())}:{};
     const data={...(isNew?fresh:{id:c.id}),name,calendar_name:($("#fCal",w)?.value||c.calendar_name||"").trim(),plan:$("#fPlan",w).value,
       videos:Math.max(0,+$("#fVid",w).value||0),arts:Math.max(0,+$("#fArt",w).value||0),traffic:$("#fTraf",w).checked,social:$("#fSoc",w).checked};
@@ -1101,7 +1103,7 @@ function clientModal(c){
       const i=S.clients.findIndex(x=>x.id===saved.id);if(i>=0)S.clients[i]=saved;else S.clients.push(saved);
       w.remove();
       if(isNew){toast("Cliente cadastrado.");S.view==="clients"?openFicha(saved.id):openClient(saved.id)}else renderEditor();
-    }catch(e){console.error(e);toast("Não foi possível salvar o cliente.");b.disabled=false}
+    }catch(e){console.error(e);toast("Não foi possível salvar o cliente."+(e&&e.message?" ("+e.message+")":""),8000);b.disabled=false}
   };
   const del=$("#fDel",w);
   if(del)del.onclick=async()=>{
